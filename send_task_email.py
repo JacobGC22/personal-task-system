@@ -218,7 +218,7 @@ def send_email(html, time_label, task_count):
         },
         json={
             'from': 'onboarding@resend.dev',
-            'to': ['jacobpmalinowski@gmail.com'],
+            'to': ['jacob@goodmancampaigns.com'],
             'subject': subject,
             'html': html
         }
