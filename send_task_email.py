@@ -6,7 +6,7 @@ SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_KEY']
 RESEND_API_KEY = os.environ['RESEND_API_KEY']
 
-PAGES_URL = 'https://YOUR_GITHUB_USERNAME.github.io/personal-task-system'  # UPDATE THIS
+PAGES_URL = 'https://JacobGC22.github.io/personal-task-system'  # UPDATE THIS
 
 NAVY = '#1B3A8C'
 GOLD = '#F5A800'
