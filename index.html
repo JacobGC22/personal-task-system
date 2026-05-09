@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasks</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #1B3A8C;
+      --gold: #F5A800;
+      --bg: #F7F6F2;
+      --surface: #FFFFFF;
+      --text: #1a1a1a;
+      --muted: #888;
+      --border: #E5E3DC;
+      --danger: #C0392B;
+      --success: #27AE60;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 80px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    header .logo {
+      width: 10px;
+      height: 32px;
+      background: var(--gold);
+      border-radius: 2px;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--navy);
+      letter-spacing: -0.3px;
+    }
+
+    .add-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .add-form h2 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    input[type="text"],
+    input[type="date"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus,
+    input[type="date"]:focus {
+      border-color: var(--navy);
+    }
+
+    input[type="date"] {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    input[type="date"]:valid {
+      color: var(--text);
+    }
+
+    .btn-add {
+      width: 100%;
+      padding: 13px;
+      background: var(--navy);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      margin-top: 2px;
+    }
+
+    .btn-add:active {
+      transform: scale(0.98);
+    }
+
+    .btn-add:hover {
+      background: #15307a;
+    }
+
+    .btn-add:disabled {
+      background: var(--muted);
+      cursor: not-allowed;
+    }
+
+    .toast {
+      display: none;
+      background: var(--success);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      transition: opacity 0.2s;
+    }
+
+    .task-card.completing {
+      opacity: 0.4;
+    }
+
+    .task-card.overdue {
+      border-left: 3px solid var(--danger);
+    }
+
+    .task-card.due-today {
+      border-left: 3px solid var(--gold);
+    }
+
+    .complete-btn {
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      margin-top: 1px;
+      transition: border-color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .complete-btn:hover {
+      border-color: var(--success);
+    }
+
+    .complete-btn:active {
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .task-content {
+      flex: 1;
+    }
+
+    .task-name {
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .task-due {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .task-due.overdue {
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    .task-due.today {
+      color: #C47A00;
+      font-weight: 500;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .empty-state .icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 30px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .no-due {
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo"></div>
+    <h1>Tasks</h1>
+  </header>
+
+  <div class="add-form">
+    <h2>Add Task</h2>
+    <div class="form-row">
+      <input type="text" id="taskInput" placeholder="What needs to get done?" autocomplete="off" />
+      <input type="date" id="dueDateInput" />
+      <button class="btn-add" id="addBtn" onclick="addTask()">Add Task</button>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="section-label">Open Tasks</div>
+  <div class="task-list" id="taskList">
+    <div class="loading">Loading...</div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://qesaesisbkgonaxcvvdg.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_gisnFZVNpxVPMmbxPnze6Q_7ZRSchW1';
+
+    function today() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return null;
+      const [year, month, day] = dateStr.split('-');
+      const d = new Date(year, month - 1, day);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function getDueStatus(dateStr) {
+      if (!dateStr) return null;
+      const t = today();
+      if (dateStr < t) return 'overdue';
+      if (dateStr === t) return 'today';
+      return 'upcoming';
+    }
+
+    function showToast(msg, isError = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(() => { t.className = 'toast'; }, 2500);
+    }
+
+    async function fetchTasks() {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?status=eq.open&order=due_date.asc.nullslast,created_at.asc`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      if (!res.ok) throw new Error('Failed to fetch tasks');
+      return res.json();
+    }
+
+    async function loadTasks() {
+      const list = document.getElementById('taskList');
+      try {
+        const tasks = await fetchTasks();
+        if (tasks.length === 0) {
+          list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
+          return;
+        }
+
+        list.innerHTML = '';
+        tasks.forEach(task => {
+          const status = getDueStatus(task.due_date);
+          const card = document.createElement('div');
+          card.className = 'task-card' + (status === 'overdue' ? ' overdue' : '') + (status === 'today' ? ' due-today' : '');
+          card.id = `task-${task.id}`;
+
+          let dueHtml = '';
+          if (task.due_date) {
+            const label = status === 'overdue' ? `Overdue · ${formatDate(task.due_date)}` :
+                          status === 'today' ? 'Due Today' :
+                          `Due ${formatDate(task.due_date)}`;
+            dueHtml = `<div class="task-due ${status === 'overdue' ? 'overdue' : status === 'today' ? 'today' : ''}">${label}</div>`;
+          }
+
+          card.innerHTML = `
+            <button class="complete-btn" onclick="completeTask('${task.id}')" title="Mark complete"></button>
+            <div class="task-content">
+              <div class="task-name">${task.task_name}</div>
+              ${dueHtml}
+            </div>
+          `;
+          list.appendChild(card);
+        });
+      } catch (e) {
+        list.innerHTML = `<div class="empty-state">Failed to load tasks. Check connection.</div>`;
+        console.error(e);
+      }
+    }
+
+    async function addTask() {
+      const nameInput = document.getElementById('taskInput');
+      const dateInput = document.getElementById('dueDateInput');
+      const btn = document.getElementById('addBtn');
+
+      const name = nameInput.value.trim();
+      if (!name) {
+        showToast('Please enter a task name.', true);
+        nameInput.focus();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+
+      const payload = {
+        task_name: name,
+        due_date: dateInput.value || null,
+        status: 'open'
+      };
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Failed to add task');
+
+        nameInput.value = '';
+        dateInput.value = '';
+        nameInput.focus();
+        showToast('Task added.');
+        loadTasks();
+      } catch (e) {
+        showToast('Failed to add task. Try again.', true);
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Add Task';
+      }
+    }
+
+    async function completeTask(id) {
+      const card = document.getElementById(`task-${id}`);
+      if (card) card.classList.add('completing');
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ status: 'complete' })
+        });
+
+        if (!res.ok) throw new Error('Failed to complete task');
+        if (card) card.remove();
+
+        const list = document.getElementById('taskList');
+        if (list.children.length === 0) {
+          list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
+        }
+      } catch (e) {
+        if (card) card.classList.remove('completing');
+        showToast('Failed to mark complete. Try again.', true);
+        console.error(e);
+      }
+    }
+
+    document.getElementById('taskInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addTask();
+    });
+
+    loadTasks();
+  </script>
+</body>
+</html>

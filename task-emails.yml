@@ -1,0 +1,30 @@
+name: Task Email Reminders
+
+on:
+  schedule:
+    - cron: '0 13 * * *'   # 7am MDT (UTC-6)
+    - cron: '0 22 * * *'   # 4pm MDT (UTC-6)
+    - cron: '0 4 * * *'    # 10pm MDT (UTC-6)
+  workflow_dispatch:
+
+jobs:
+  send-task-email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Send task email
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: python send_task_email.py
