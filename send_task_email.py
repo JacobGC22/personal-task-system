@@ -159,6 +159,99 @@ def fetch_tasks():
     return res.json()
 
 
+def fetch_upcoming_birthdays():
+    """Fetch birthdays occurring within the next 14 days including today."""
+    res = requests.get(
+        f'{SUPABASE_URL}/rest/v1/birthdays',
+        params={'order': 'month.asc,day.asc'},
+        headers={
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}'
+        }
+    )
+    res.raise_for_status()
+    all_birthdays = res.json()
+
+    today_mt = get_mountain_now()
+    today_date = today_mt.date()
+    upcoming = []
+
+    for b in all_birthdays:
+        month = b['month']
+        day = b['day']
+
+        # Find next occurrence of this birthday
+        try:
+            this_year = date(today_date.year, month, day)
+        except ValueError:
+            continue  # Skip invalid dates like Feb 30
+
+        if this_year < today_date:
+            next_bday = date(today_date.year + 1, month, day)
+        else:
+            next_bday = this_year
+
+        days_away = (next_bday - today_date).days
+
+        if days_away <= 14:
+            upcoming.append({
+                'name': b['name'],
+                'month': month,
+                'day': day,
+                'days_away': days_away,
+                'date_str': next_bday.strftime('%B %-d')
+            })
+
+    upcoming.sort(key=lambda x: x['days_away'])
+    return upcoming
+
+
+def build_birthday_section(birthdays):
+    if not birthdays:
+        return ''
+
+    rows = ''
+    for b in birthdays:
+        if b['days_away'] == 0:
+            bg = '#FFF8E6'
+            border = f'border:1px solid {GOLD};border-left:3px solid {GOLD};'
+            label = f'<span style="color:#8A6A00;font-weight:600;font-size:12px;">🎂 Today!</span>'
+        elif b['days_away'] <= 3:
+            bg = WHITE
+            border = f'border:1px solid {BORDER};border-left:3px solid {GOLD};'
+            label = f'<span style="color:{MUTED};font-size:12px;">In {b["days_away"]} day{"s" if b["days_away"] != 1 else ""} · {b["date_str"]}</span>'
+        else:
+            bg = WHITE
+            border = f'border:1px solid {BORDER};'
+            label = f'<span style="color:{MUTED};font-size:12px;">In {b["days_away"]} days · {b["date_str"]}</span>'
+
+        rows += f'''
+        <tr>
+          <td style="padding:0 0 8px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:{bg};{border}border-radius:10px;">
+              <tr>
+                <td style="padding:14px 20px;">
+                  <div style="font-size:15px;font-weight:500;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;">{b["name"]}</div>
+                  <div style="margin-top:3px;">{label}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>'''
+
+    return f'''
+          <!-- Birthdays -->
+          <tr>
+            <td style="padding:0 0 8px 0;">
+              <div style="font-size:12px;font-weight:600;color:{MUTED};margin-bottom:10px;">Upcoming Birthdays</div>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                {rows}
+              </table>
+            </td>
+          </tr>
+    '''
+
+
 def format_date(date_str):
     if not date_str:
         return None
@@ -236,7 +329,7 @@ def build_task_row(task):
     '''
 
 
-def build_email(tasks, send_type):
+def build_email(tasks, send_type, birthdays=None):
     today_str = get_mountain_now().strftime('%B %-d, %Y')
     time_label = '7am' if send_type == 'morning' else '4:30pm'
 
@@ -263,6 +356,8 @@ def build_email(tasks, send_type):
         summary_parts.append(f'<span style="color:#8A6A00;font-weight:600;">{today_count} due today</span>')
     summary_parts.append(f'{len(tasks)} total open')
     summary_html = ' &nbsp;·&nbsp; '.join(summary_parts)
+
+    birthday_html = build_birthday_section(birthdays or [])
 
     # Skip followup button — only in morning email
     skip_html = ''
@@ -296,6 +391,8 @@ def build_email(tasks, send_type):
               <div style="font-size:13px;color:{MUTED};margin-top:4px;">{time_label} &nbsp;·&nbsp; {today_str}</div>
             </td>
           </tr>
+
+          {birthday_html}
 
           <!-- Summary bar -->
           <tr>
@@ -393,8 +490,15 @@ def main():
     tasks = fetch_tasks()
     print(f'STATUS: Found {len(tasks)} open tasks')
 
+    # Fetch birthdays (only for morning email)
+    birthdays = []
+    if send_type == 'morning':
+        print('STATUS: Fetching upcoming birthdays...')
+        birthdays = fetch_upcoming_birthdays()
+        print(f'STATUS: Found {len(birthdays)} upcoming birthdays in next 14 days')
+
     # Build and send
-    html = build_email(tasks, send_type)
+    html = build_email(tasks, send_type, birthdays)
     send_email(html, send_type, len(tasks))
 
     # Mark as sent (skip for manual triggers to allow re-testing)
