@@ -1,11 +1,12 @@
 import os
 import requests
-from datetime import date, datetime
+import pytz
+from datetime import datetime, date
 
 SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_KEY']
 RESEND_API_KEY = os.environ['RESEND_API_KEY']
-SEND_HOUR_MDT = int(os.environ.get('SEND_HOUR_MDT', 0))
+FORCE_SEND = os.environ.get('FORCE_SEND', '')  # 'morning', 'followup', or ''
 
 PAGES_URL = 'https://JacobGC22.github.io/personal-task-system'
 
@@ -17,6 +18,127 @@ WHITE = '#FFFFFF'
 MUTED = '#888888'
 DANGER = '#C0392B'
 BORDER = '#E2DED6'
+
+MOUNTAIN = pytz.timezone('America/Denver')
+
+# Valid Mountain time windows for each send
+MORNING_HOUR = 7
+MORNING_WINDOW = (55, 65)   # 6:55am - 7:05am Mountain (minutes from midnight edge)
+FOLLOWUP_HOUR = 16
+FOLLOWUP_MINUTE = 30
+FOLLOWUP_WINDOW = 10        # +/- 10 minutes from 4:30pm Mountain
+
+
+def get_mountain_now():
+    return datetime.now(MOUNTAIN)
+
+
+def get_mountain_today():
+    return get_mountain_now().strftime('%Y-%m-%d')
+
+
+def determine_send_type():
+    """
+    Returns 'morning', 'followup', or None.
+    If FORCE_SEND is set (manual trigger), use that directly.
+    Otherwise check Mountain time to determine which send this is.
+    """
+    if FORCE_SEND == 'morning':
+        print('STATUS: Manual trigger — forcing morning email')
+        return 'morning'
+    if FORCE_SEND == 'followup':
+        print('STATUS: Manual trigger — forcing followup email')
+        return 'followup'
+
+    now_mt = get_mountain_now()
+    hour = now_mt.hour
+    minute = now_mt.minute
+    total_minutes = hour * 60 + minute
+
+    morning_target = MORNING_HOUR * 60
+    followup_target = FOLLOWUP_HOUR * 60 + FOLLOWUP_MINUTE
+
+    # Check morning window (6:55am - 7:05am)
+    if abs(total_minutes - morning_target) <= 5:
+        print(f'STATUS: Mountain time is {hour}:{minute:02d} — matched morning window')
+        return 'morning'
+
+    # Check followup window (4:20pm - 4:40pm)
+    if abs(total_minutes - followup_target) <= 10:
+        print(f'STATUS: Mountain time is {hour}:{minute:02d} — matched followup window')
+        return 'followup'
+
+    print(f'STATUS: Mountain time is {hour}:{minute:02d} — outside all send windows, skipping')
+    return None
+
+
+def is_weekend():
+    now_mt = get_mountain_now()
+    is_wknd = now_mt.weekday() >= 5  # 5=Saturday, 6=Sunday
+    print(f'STATUS: Day of week (Mountain): {now_mt.strftime("%A")} — weekend={is_wknd}')
+    return is_wknd
+
+
+def check_already_sent_today(send_type):
+    """Check Supabase to see if we already sent this email today (prevents DST double-send)."""
+    key = f'last_sent_{send_type}'
+    today = get_mountain_today()
+
+    res = requests.get(
+        f'{SUPABASE_URL}/rest/v1/settings?key=eq.{key}',
+        headers={
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}'
+        }
+    )
+    res.raise_for_status()
+    rows = res.json()
+
+    if rows and rows[0]['value'].get('date') == today:
+        print(f'STATUS: Already sent {send_type} email today ({today}), skipping')
+        return True
+    return False
+
+
+def mark_sent_today(send_type):
+    """Record that we sent this email today."""
+    key = f'last_sent_{send_type}'
+    today = get_mountain_today()
+
+    # Upsert into settings
+    res = requests.post(
+        f'{SUPABASE_URL}/rest/v1/settings',
+        headers={
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+        },
+        json={'key': key, 'value': {'date': today}}
+    )
+    res.raise_for_status()
+    print(f'STATUS: Marked {send_type} as sent for {today}')
+
+
+def check_followup_skipped():
+    """Check if user has skipped the followup email for today."""
+    today = get_mountain_today()
+
+    res = requests.get(
+        f'{SUPABASE_URL}/rest/v1/settings?key=eq.skip_followup_date',
+        headers={
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}'
+        }
+    )
+    res.raise_for_status()
+    rows = res.json()
+
+    if rows and rows[0]['value'].get('date') == today:
+        print(f'STATUS: Followup skipped for today ({today})')
+        return True
+    print('STATUS: Followup not skipped, sending')
+    return False
 
 
 def fetch_tasks():
@@ -35,19 +157,6 @@ def fetch_tasks():
     return res.json()
 
 
-def get_time_label():
-    hour = SEND_HOUR_MDT
-    if hour == 0:
-        # Fallback if env var not set
-        hour = datetime.utcnow().hour
-    if hour < 12:
-        return f'{hour}am'
-    elif hour == 12:
-        return '12pm'
-    else:
-        return f'{hour - 12}pm'
-
-
 def format_date(date_str):
     if not date_str:
         return None
@@ -58,7 +167,7 @@ def format_date(date_str):
 def get_due_status(date_str):
     if not date_str:
         return None
-    today = date.today().isoformat()
+    today = get_mountain_today()
     if date_str < today:
         return 'overdue'
     elif date_str == today:
@@ -82,9 +191,9 @@ def build_task_row(task):
 
     left_border = ''
     if status == 'overdue':
-        left_border = f'border-left:3px solid {DANGER};padding-left:0;'
+        left_border = f'border-left:3px solid {DANGER};'
     elif status == 'today':
-        left_border = f'border-left:3px solid {GOLD};padding-left:0;'
+        left_border = f'border-left:3px solid {GOLD};'
 
     snooze_html = ''
     if snooze_url:
@@ -125,8 +234,11 @@ def build_task_row(task):
     '''
 
 
-def build_email(tasks, time_label):
-    today_str = date.today().strftime('%B %-d, %Y')
+def build_email(tasks, send_type):
+    today_str = get_mountain_now().strftime('%B %-d, %Y')
+    time_label = '7am' if send_type == 'morning' else '4:30pm'
+
+    skip_url = f"{PAGES_URL}/skip_followup.html"
 
     if not tasks:
         body_html = f'''
@@ -149,6 +261,18 @@ def build_email(tasks, time_label):
         summary_parts.append(f'<span style="color:#8A6A00;font-weight:600;">{today_count} due today</span>')
     summary_parts.append(f'{len(tasks)} total open')
     summary_html = ' &nbsp;·&nbsp; '.join(summary_parts)
+
+    # Skip followup button — only in morning email
+    skip_html = ''
+    if send_type == 'morning':
+        skip_html = f'''
+          <tr>
+            <td style="padding:20px 0 0 0;text-align:center;">
+              <a href="{skip_url}" style="color:{MUTED};font-size:12px;text-decoration:none;border:1px solid {BORDER};padding:6px 14px;border-radius:6px;font-family:'DM Sans',Arial,sans-serif;">
+                Skip today's followup email
+              </a>
+            </td>
+          </tr>'''
 
     return f'''
 <!DOCTYPE html>
@@ -202,6 +326,8 @@ def build_email(tasks, time_label):
             </td>
           </tr>
 
+          {skip_html}
+
         </table>
       </td>
     </tr>
@@ -211,7 +337,8 @@ def build_email(tasks, time_label):
 '''
 
 
-def send_email(html, time_label, task_count):
+def send_email(html, send_type, task_count):
+    time_label = '7am' if send_type == 'morning' else '4:30pm'
     subject = f'Tasks · {time_label} · {task_count} open'
     if task_count == 0:
         subject = f'Tasks · {time_label} · All clear'
@@ -238,16 +365,39 @@ def send_email(html, time_label, task_count):
 
 
 def main():
-    print(f'Send hour MDT: {SEND_HOUR_MDT}')
-    print('Fetching tasks from Supabase...')
+    # Determine what to send
+    send_type = determine_send_type()
+
+    if send_type is None:
+        print('STATUS: Nothing to send, exiting cleanly')
+        return
+
+    # Skip followup on weekends
+    if send_type == 'followup' and is_weekend():
+        print('STATUS: Weekend — skipping followup email')
+        return
+
+    # Skip followup if user pressed skip button today
+    if send_type == 'followup' and check_followup_skipped():
+        return
+
+    # Prevent double-send on DST transition days (skip for manual triggers)
+    if not FORCE_SEND:
+        if check_already_sent_today(send_type):
+            return
+
+    # Fetch tasks
+    print('STATUS: Fetching tasks from Supabase...')
     tasks = fetch_tasks()
-    print(f'Found {len(tasks)} open tasks')
+    print(f'STATUS: Found {len(tasks)} open tasks')
 
-    time_label = get_time_label()
-    print(f'Time label: {time_label}')
+    # Build and send
+    html = build_email(tasks, send_type)
+    send_email(html, send_type, len(tasks))
 
-    html = build_email(tasks, time_label)
-    send_email(html, time_label, len(tasks))
+    # Mark as sent (skip for manual triggers to allow re-testing)
+    if not FORCE_SEND:
+        mark_sent_today(send_type)
 
 
 if __name__ == '__main__':
