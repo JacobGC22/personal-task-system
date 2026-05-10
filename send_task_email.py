@@ -6,16 +6,17 @@ SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_KEY']
 RESEND_API_KEY = os.environ['RESEND_API_KEY']
 
-PAGES_URL = 'https://JacobGC22.github.io/personal-task-system'  # UPDATE THIS
+PAGES_URL = 'https://JacobGC22.github.io/personal-task-system'
 
-NAVY = '#1B3A8C'
-GOLD = '#F5A800'
-BG = '#F7F6F2'
+GREEN = '#1D4D2E'
+GREEN_DARK = '#163D24'
+GOLD = '#C8993A'
+BG = '#F5F3EE'
 WHITE = '#FFFFFF'
 MUTED = '#888888'
 DANGER = '#C0392B'
-SUCCESS = '#27AE60'
-BORDER = '#E5E3DC'
+SUCCESS = '#1D4D2E'
+BORDER = '#E2DED6'
 
 
 def fetch_tasks():
@@ -95,7 +96,7 @@ def build_task_row(task):
                     {task['task_name']}
                   </td>
                   <td align="right" style="white-space:nowrap;">
-                    <a href="{complete_url}" style="display:inline-block;padding:6px 14px;background:{NAVY};color:{WHITE};text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;font-family:'DM Sans',Arial,sans-serif;">
+                    <a href="{complete_url}" style="display:inline-block;padding:6px 14px;background:{GREEN};color:{WHITE};text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;font-family:'DM Sans',Arial,sans-serif;">
                       Done
                     </a>
                   </td>
@@ -152,16 +153,8 @@ def build_email(tasks, time_label):
           <!-- Header -->
           <tr>
             <td style="padding:0 0 24px 0;">
-              <table cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="width:8px;background:{GOLD};border-radius:2px;">&nbsp;</td>
-                  <td style="width:10px;"></td>
-                  <td>
-                    <div style="font-size:20px;font-weight:600;color:{NAVY};">Tasks</div>
-                    <div style="font-size:13px;color:{MUTED};margin-top:2px;">{time_label} &nbsp;·&nbsp; {today_str}</div>
-                  </td>
-                </tr>
-              </table>
+              <div style="font-size:20px;font-weight:600;color:{GREEN};">Tasks</div>
+              <div style="font-size:13px;color:{MUTED};margin-top:2px;">{time_label} &nbsp;·&nbsp; {today_str}</div>
             </td>
           </tr>
 
@@ -190,7 +183,7 @@ def build_email(tasks, time_label):
           <!-- Footer -->
           <tr>
             <td style="padding:24px 0 0 0;text-align:center;">
-              <a href="{PAGES_URL}" style="color:{NAVY};font-size:13px;font-weight:500;text-decoration:none;">
+              <a href="{PAGES_URL}" style="color:{GREEN};font-size:13px;font-weight:500;text-decoration:none;">
                 Open task list →
               </a>
             </td>
