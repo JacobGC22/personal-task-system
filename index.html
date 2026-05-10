@@ -632,11 +632,13 @@
         const trials = subs.filter(s => s.cadence === 'trial');
 
         // Calculate totals from paid only, excluding annual fees
+        // Spotify: only count 1/3 (family plan, 2 of 6 slots)
         let monthlyTotal = 0;
         let yearlyTotal = 0;
         paid.forEach(s => {
           if (s.name.toLowerCase().includes('annual fee')) return;
-          const amt = parseFloat(s.amount);
+          const isSpotify = s.name.toLowerCase().includes('spotify');
+          const amt = isSpotify ? parseFloat(s.amount) / 3 : parseFloat(s.amount);
           if (s.cadence === 'monthly') {
             monthlyTotal += amt;
             yearlyTotal += amt * 12;
@@ -686,7 +688,12 @@
               }
             }
 
-            const amountDisplay = `<div style="font-size:15px;font-weight:600;color:var(--green);white-space:nowrap;padding-left:12px;">${formatCurrency(s.amount)}<span style="font-size:12px;font-weight:400;color:var(--muted);">${cadenceLabel}</span></div>`;
+            const isSpotify = s.name.toLowerCase().includes('spotify');
+            const displayAmount = isSpotify ? parseFloat(s.amount) / 3 : parseFloat(s.amount);
+            const amountDisplay = `<div style="font-size:15px;font-weight:600;color:var(--green);white-space:nowrap;padding-left:12px;text-align:right;">
+              ${formatCurrency(displayAmount)}<span style="font-size:12px;font-weight:400;color:var(--muted);">${cadenceLabel}</span>
+              ${isSpotify ? `<div style="font-size:11px;color:var(--muted);font-weight:400;">Full: ${formatCurrency(s.amount)}${cadenceLabel}</div>` : ''}
+            </div>`;
             const escapedName = s.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             card.className = cardClass;
             card.id = `sub-${s.id}`;
