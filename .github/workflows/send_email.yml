@@ -1,12 +1,20 @@
 name: Send Task Email
 
 on:
+  schedule:
+    - cron: '0 13 * * *'    # 7am MDT (UTC-6), runs daily
+    - cron: '0 14 * * *'    # 7am MST (UTC-7), runs daily
+    - cron: '30 22 * * 1-5' # 4:30pm MDT (UTC-6), weekdays only
+    - cron: '30 23 * * 1-5' # 4:30pm MST (UTC-7), weekdays only
   workflow_dispatch:
     inputs:
-      send_hour_mdt:
-        description: 'Hour to send (MDT, 0-23)'
+      force_send:
+        description: 'Which email to send: morning or followup'
         required: true
-        type: string
+        type: choice
+        options:
+          - morning
+          - followup
 
 jobs:
   send-email:
@@ -21,34 +29,12 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests
-
-      - name: Wait until send time
-        run: |
-          python - <<'EOF'
-          import time
-          from datetime import datetime, timezone
-
-          send_hour_mdt = int('${{ github.event.inputs.send_hour_mdt }}')
-          MDT_OFFSET = -6
-          utc_hour = (send_hour_mdt - MDT_OFFSET) % 24
-
-          now_utc = datetime.now(timezone.utc)
-          target_minute = now_utc.replace(hour=utc_hour, minute=0, second=0, microsecond=0)
-
-          wait_seconds = (target_minute - now_utc).total_seconds()
-
-          if wait_seconds > 0:
-              print(f"Waiting {int(wait_seconds)} seconds until {send_hour_mdt}:00 MDT...")
-              time.sleep(wait_seconds)
-          else:
-              print(f"Already at or past {send_hour_mdt}:00 MDT, sending now")
-          EOF
+        run: pip install requests pytz
 
       - name: Send task email
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          SEND_HOUR_MDT: ${{ github.event.inputs.send_hour_mdt }}
+          FORCE_SEND: ${{ github.event.inputs.force_send }}
         run: python send_task_email.py
