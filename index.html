@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tasks</title>
+  <title>Jacob Personal To-Do</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -81,17 +81,17 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     }
 
-    .add-form h2 {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 12px;
-    }
-
     .form-row {
       display: flex;
       flex-direction: column;
       gap: 10px;
+    }
+
+    .date-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 4px;
     }
 
     input[type="text"],
@@ -132,7 +132,6 @@
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s, transform 0.1s;
-      margin-top: 2px;
     }
 
     .btn-add:active { transform: scale(0.98); }
@@ -167,6 +166,45 @@
       gap: 8px;
     }
 
+    /* Task card animations */
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+        max-height: 200px;
+        margin-bottom: 0;
+      }
+      to {
+        opacity: 0;
+        transform: translateX(40px);
+        max-height: 0;
+        margin-bottom: -8px;
+      }
+    }
+
+    @keyframes completePop {
+      0%   { transform: scale(1); background: transparent; border-color: var(--border); }
+      40%  { transform: scale(1.3); background: var(--green); border-color: var(--green); }
+      70%  { transform: scale(0.9); }
+      100% { transform: scale(1); background: var(--green); border-color: var(--green); }
+    }
+
+    @keyframes editExpand {
+      from { opacity: 0; transform: scaleY(0.95); transform-origin: top; }
+      to   { opacity: 1; transform: scaleY(1); }
+    }
+
     .task-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -176,10 +214,15 @@
       align-items: flex-start;
       gap: 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-      transition: opacity 0.2s;
+      animation: slideIn 0.2s ease;
+      overflow: hidden;
     }
 
-    .task-card.completing { opacity: 0.4; }
+    .task-card.removing {
+      animation: slideOut 0.3s ease forwards;
+      pointer-events: none;
+    }
+
     .task-card.overdue { border-left: 3px solid var(--danger); }
     .task-card.due-today { border-left: 3px solid var(--gold); }
 
@@ -192,11 +235,20 @@
       background: transparent;
       cursor: pointer;
       margin-top: 1px;
-      transition: border-color 0.15s, background 0.15s;
+      transition: border-color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: transparent;
     }
 
     .complete-btn:hover { border-color: var(--success); }
-    .complete-btn:active { background: var(--success); border-color: var(--success); }
+
+    .complete-btn.popping {
+      animation: completePop 0.35s ease forwards;
+      color: white;
+    }
 
     .task-content { flex: 1; }
 
@@ -250,12 +302,13 @@
 
     .edit-btn:hover { border-color: var(--green); color: var(--green); }
 
-    /* Inline edit mode */
+    /* Inline edit */
     .edit-form {
       display: flex;
       flex-direction: column;
       gap: 8px;
       width: 100%;
+      animation: editExpand 0.18s ease;
     }
 
     .edit-input {
@@ -300,7 +353,10 @@
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      transition: background 0.15s;
     }
+
+    .save-edit-btn:hover { background: var(--green-dark); }
 
     .cancel-edit-btn {
       padding: 5px 14px;
@@ -414,7 +470,7 @@
 <body>
 
   <header>
-    <h1>Tasks</h1>
+    <h1>Jacob Personal To-Do</h1>
   </header>
 
   <div class="tab-nav">
@@ -425,10 +481,12 @@
   <!-- Tasks Tab -->
   <div class="tab-panel active" id="tab-tasks">
     <div class="add-form">
-      <h2>Add task</h2>
       <div class="form-row">
         <input type="text" id="taskInput" placeholder="What needs to get done?" autocomplete="off" />
-        <input type="date" id="dueDateInput" />
+        <div>
+          <div class="date-label">Due date (optional)</div>
+          <input type="date" id="dueDateInput" />
+        </div>
         <button class="btn-add" id="addBtn" onclick="addTask()">Add Task</button>
       </div>
       <div class="toast" id="toast"></div>
@@ -478,10 +536,6 @@
       if (tab === 'settings') loadSettings();
     }
 
-    function today() {
-      return new Date().toISOString().split('T')[0];
-    }
-
     function formatDate(dateStr) {
       if (!dateStr) return null;
       const [year, month, day] = dateStr.split('-');
@@ -504,6 +558,10 @@
       setTimeout(() => { t.className = 'toast'; }, 2500);
     }
 
+    function updateTitle(count) {
+      document.title = count > 0 ? `Jacob Personal To-Do (${count})` : 'Jacob Personal To-Do';
+    }
+
     async function fetchTasks() {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?status=eq.open&order=due_date.asc.nullslast,created_at.asc`, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
@@ -512,13 +570,47 @@
       return res.json();
     }
 
+    function buildTaskCard(task) {
+      const status = getDueStatus(task.due_date);
+      const card = document.createElement('div');
+      card.className = 'task-card' +
+        (status === 'overdue' ? ' overdue' : '') +
+        (status === 'today' ? ' due-today' : '');
+      card.id = `task-${task.id}`;
+
+      let dueHtml = '';
+      if (task.due_date) {
+        const label = status === 'overdue' ? `Overdue · ${formatDate(task.due_date)}` :
+                      status === 'today'   ? 'Due Today' :
+                      `Due ${formatDate(task.due_date)}`;
+        dueHtml = `<div class="task-due ${status === 'overdue' ? 'overdue' : status === 'today' ? 'today' : ''}">${label}</div>`;
+      }
+
+      const snoozeHtml = task.due_date
+        ? `<button class="snooze-btn" onclick="snoozeTask('${task.id}', '${task.due_date}')">Snooze 1 day</button>`
+        : '';
+
+      const escapedName = task.task_name.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/'/g, "\\'");
+
+      card.innerHTML = `
+        <button class="complete-btn" id="btn-${task.id}" onclick="completeTask('${task.id}')" title="Mark complete"></button>
+        <div class="task-content">
+          <div class="task-name">${task.task_name}</div>
+          ${dueHtml}
+          <div class="task-actions">
+            ${snoozeHtml}
+            <button class="edit-btn" onclick="editTask('${task.id}', '${escapedName}', '${task.due_date || ''}')">✏️</button>
+          </div>
+        </div>
+      `;
+      return card;
+    }
+
     async function loadTasks() {
       const list = document.getElementById('taskList');
       try {
         const tasks = await fetchTasks();
-
-        // Update tab title
-        document.title = tasks.length > 0 ? `Tasks (${tasks.length})` : 'Tasks';
+        updateTitle(tasks.length);
 
         if (tasks.length === 0) {
           list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
@@ -526,36 +618,7 @@
         }
 
         list.innerHTML = '';
-        tasks.forEach(task => {
-          const status = getDueStatus(task.due_date);
-          const card = document.createElement('div');
-          card.className = 'task-card' +
-            (status === 'overdue' ? ' overdue' : '') +
-            (status === 'today' ? ' due-today' : '');
-          card.id = `task-${task.id}`;
-
-          let dueHtml = '';
-          if (task.due_date) {
-            const label = status === 'overdue' ? `Overdue · ${formatDate(task.due_date)}` :
-                          status === 'today'   ? 'Due Today' :
-                          `Due ${formatDate(task.due_date)}`;
-            dueHtml = `<div class="task-due ${status === 'overdue' ? 'overdue' : status === 'today' ? 'today' : ''}">${label}</div>`;
-          }
-
-          const snoozeHtml = task.due_date
-            ? `<div class="task-actions"><button class="snooze-btn" onclick="snoozeTask('${task.id}', '${task.due_date}')">Snooze 1 day</button><button class="edit-btn" onclick="editTask('${task.id}', \`${task.task_name.replace(/`/g, '\\`')}\`, '${task.due_date || ''}')">✏️</button></div>`
-            : `<div class="task-actions"><button class="edit-btn" onclick="editTask('${task.id}', \`${task.task_name.replace(/`/g, '\\`')}\`, '')">✏️</button></div>`;
-
-          card.innerHTML = `
-            <button class="complete-btn" onclick="completeTask('${task.id}')" title="Mark complete"></button>
-            <div class="task-content">
-              <div class="task-name">${task.task_name}</div>
-              ${dueHtml}
-              ${snoozeHtml}
-            </div>
-          `;
-          list.appendChild(card);
-        });
+        tasks.forEach(task => list.appendChild(buildTaskCard(task)));
       } catch (e) {
         list.innerHTML = `<div class="empty-state">Failed to load tasks. Check connection.</div>`;
         console.error(e);
@@ -584,17 +647,46 @@
             'apikey': SUPABASE_KEY,
             'Authorization': `Bearer ${SUPABASE_KEY}`,
             'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
+            'Prefer': 'return=representation'
           },
           body: JSON.stringify({ task_name: name, due_date: dateInput.value || null, status: 'open' })
         });
 
         if (!res.ok) throw new Error('Failed to add task');
+
+        const [newTask] = await res.json();
         nameInput.value = '';
         dateInput.value = '';
         nameInput.focus();
+
+        // Animate new card into list
+        const list = document.getElementById('taskList');
+        const emptyState = list.querySelector('.empty-state');
+        if (emptyState) list.innerHTML = '';
+
+        const card = buildTaskCard(newTask);
+        // Insert in correct position (by due date)
+        const existingCards = list.querySelectorAll('.task-card');
+        let inserted = false;
+
+        if (newTask.due_date) {
+          for (const existing of existingCards) {
+            const existingTask = existing.querySelector('.task-due');
+            // If no due date on existing card, insert before it
+            if (!existingTask) {
+              list.insertBefore(card, existing);
+              inserted = true;
+              break;
+            }
+          }
+        }
+
+        if (!inserted) list.appendChild(card);
+
+        // Update count
+        const count = list.querySelectorAll('.task-card').length;
+        updateTitle(count);
         showToast('Task added.');
-        loadTasks();
       } catch (e) {
         showToast('Failed to add task. Try again.', true);
         console.error(e);
@@ -606,41 +698,54 @@
 
     async function completeTask(id) {
       const card = document.getElementById(`task-${id}`);
-      if (card) card.classList.add('completing');
+      const btn = document.getElementById(`btn-${id}`);
+      if (!card || !btn) return;
 
-      try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({ status: 'complete' })
-        });
+      // Animate the button
+      btn.textContent = '✓';
+      btn.classList.add('popping');
 
-        if (!res.ok) throw new Error('Failed to complete task');
-        if (card) card.remove();
+      // Wait for pop animation then slide card out
+      setTimeout(async () => {
+        card.classList.add('removing');
 
-        const list = document.getElementById('taskList');
-        if (list.children.length === 0) {
-          list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
-          document.title = 'Tasks';
-        } else {
-          const remaining = list.querySelectorAll('.task-card').length;
-          document.title = remaining > 0 ? `Tasks (${remaining})` : 'Tasks';
-        }
-      } catch (e) {
-        if (card) card.classList.remove('completing');
-        showToast('Failed to mark complete. Try again.', true);
-        console.error(e);
-      }
+        setTimeout(async () => {
+          try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
+              method: 'PATCH',
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+              },
+              body: JSON.stringify({ status: 'complete' })
+            });
+
+            if (!res.ok) throw new Error('Failed to complete task');
+            card.remove();
+
+            const list = document.getElementById('taskList');
+            const remaining = list.querySelectorAll('.task-card').length;
+            updateTitle(remaining);
+
+            if (remaining === 0) {
+              list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
+            }
+          } catch (e) {
+            card.classList.remove('removing');
+            btn.classList.remove('popping');
+            btn.textContent = '';
+            showToast('Failed to mark complete. Try again.', true);
+            console.error(e);
+          }
+        }, 300);
+      }, 350);
     }
 
     async function snoozeTask(id, currentDueDate) {
       const card = document.getElementById(`task-${id}`);
-      if (card) card.classList.add('completing');
+      if (card) card.style.opacity = '0.4';
 
       const d = new Date(currentDueDate + 'T00:00:00');
       d.setDate(d.getDate() + 1);
@@ -662,8 +767,72 @@
         showToast('Snoozed by 1 day.');
         loadTasks();
       } catch (e) {
-        if (card) card.classList.remove('completing');
+        if (card) card.style.opacity = '1';
         showToast('Failed to snooze. Try again.', true);
+        console.error(e);
+      }
+    }
+
+    function editTask(id, currentName, currentDue) {
+      const card = document.getElementById(`task-${id}`);
+      if (!card) return;
+
+      card.dataset.originalHtml = card.innerHTML;
+
+      card.innerHTML = `
+        <button class="complete-btn" id="btn-${id}" onclick="completeTask('${id}')" title="Mark complete"></button>
+        <div class="task-content">
+          <div class="edit-form">
+            <input class="edit-input" id="edit-name-${id}" type="text" value="${currentName.replace(/"/g, '&quot;')}" />
+            <div>
+              <div class="date-label">Due date (optional)</div>
+              <input class="edit-date" id="edit-due-${id}" type="date" value="${currentDue}" />
+            </div>
+            <div class="edit-actions">
+              <button class="save-edit-btn" onclick="saveEdit('${id}')">Save</button>
+              <button class="cancel-edit-btn" onclick="cancelEdit('${id}')">Cancel</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById(`edit-name-${id}`).focus();
+    }
+
+    function cancelEdit(id) {
+      const card = document.getElementById(`task-${id}`);
+      if (!card) return;
+      card.innerHTML = card.dataset.originalHtml;
+    }
+
+    async function saveEdit(id) {
+      const nameInput = document.getElementById(`edit-name-${id}`);
+      const dateInput = document.getElementById(`edit-due-${id}`);
+
+      const newName = nameInput.value.trim();
+      if (!newName) {
+        nameInput.style.borderColor = 'var(--danger)';
+        nameInput.focus();
+        return;
+      }
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ task_name: newName, due_date: dateInput.value || null })
+        });
+
+        if (!res.ok) throw new Error('Failed to save edit');
+        showToast('Task updated.');
+        loadTasks();
+      } catch (e) {
+        showToast('Failed to save. Try again.', true);
         console.error(e);
       }
     }
@@ -703,108 +872,30 @@
       const today = getMountainDate();
 
       try {
-        if (toggle.checked) {
-          // Skip followup
-          const res = await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': 'application/json',
-              'Prefer': 'resolution=merge-duplicates'
-            },
-            body: JSON.stringify({ key: 'skip_followup_date', value: { date: today } })
-          });
-
-          if (!res.ok) throw new Error('Failed to skip');
-          note.textContent = "4:30pm email is skipped for today.";
-          banner.classList.add('show');
-        } else {
-          // Unskip — set date to empty string so it won't match today
-          const res = await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': 'application/json',
-              'Prefer': 'resolution=merge-duplicates'
-            },
-            body: JSON.stringify({ key: 'skip_followup_date', value: { date: '' } })
-          });
-
-          if (!res.ok) throw new Error('Failed to unskip');
-          note.textContent = "4:30pm followup will send today.";
-          banner.classList.remove('show');
-        }
-      } catch (e) {
-        // Revert toggle on error
-        toggle.checked = !toggle.checked;
-        console.error('Failed to update skip setting', e);
-      }
-    }
-
-    function editTask(id, currentName, currentDue) {
-      const card = document.getElementById(`task-${id}`);
-      if (!card) return;
-
-      // Store original HTML so we can restore on cancel
-      card.dataset.originalHtml = card.innerHTML;
-
-      card.innerHTML = `
-        <button class="complete-btn" onclick="completeTask('${id}')" title="Mark complete"></button>
-        <div class="task-content">
-          <div class="edit-form">
-            <input class="edit-input" id="edit-name-${id}" type="text" value="${currentName.replace(/"/g, '&quot;')}" />
-            <input class="edit-date" id="edit-due-${id}" type="date" value="${currentDue}" />
-            <div class="edit-actions">
-              <button class="save-edit-btn" onclick="saveEdit('${id}')">Save</button>
-              <button class="cancel-edit-btn" onclick="cancelEdit('${id}')">Cancel</button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      document.getElementById(`edit-name-${id}`).focus();
-    }
-
-    function cancelEdit(id) {
-      const card = document.getElementById(`task-${id}`);
-      if (!card) return;
-      card.innerHTML = card.dataset.originalHtml;
-    }
-
-    async function saveEdit(id) {
-      const nameInput = document.getElementById(`edit-name-${id}`);
-      const dateInput = document.getElementById(`edit-due-${id}`);
-
-      const newName = nameInput.value.trim();
-      if (!newName) {
-        nameInput.style.borderColor = 'var(--danger)';
-        nameInput.focus();
-        return;
-      }
-
-      try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
-          method: 'PATCH',
+        const value = toggle.checked ? today : '';
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
+          method: 'POST',
           headers: {
             'apikey': SUPABASE_KEY,
             'Authorization': `Bearer ${SUPABASE_KEY}`,
             'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
+            'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify({
-            task_name: newName,
-            due_date: dateInput.value || null
-          })
+          body: JSON.stringify({ key: 'skip_followup_date', value: { date: value } })
         });
 
-        if (!res.ok) throw new Error('Failed to save edit');
-        showToast('Task updated.');
-        loadTasks();
+        if (!res.ok) throw new Error('Failed to update');
+
+        if (toggle.checked) {
+          note.textContent = "4:30pm email is skipped for today.";
+          banner.classList.add('show');
+        } else {
+          note.textContent = "4:30pm followup will send today.";
+          banner.classList.remove('show');
+        }
       } catch (e) {
-        showToast('Failed to save. Try again.', true);
-        console.error(e);
+        toggle.checked = !toggle.checked;
+        console.error('Failed to update skip setting', e);
       }
     }
 
