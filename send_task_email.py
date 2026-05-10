@@ -23,10 +23,12 @@ MOUNTAIN = pytz.timezone('America/Denver')
 
 # Valid Mountain time windows for each send
 MORNING_HOUR = 7
-MORNING_WINDOW = (55, 65)   # 6:55am - 7:05am Mountain (minutes from midnight edge)
+MORNING_WINDOW_START = (6, 30)   # 6:30am Mountain
+MORNING_WINDOW_END = (9, 0)      # 9:00am Mountain
 FOLLOWUP_HOUR = 16
 FOLLOWUP_MINUTE = 30
-FOLLOWUP_WINDOW = 10        # +/- 10 minutes from 4:30pm Mountain
+FOLLOWUP_WINDOW_START = (16, 0)  # 4:00pm Mountain
+FOLLOWUP_WINDOW_END = (18, 0)    # 6:00pm Mountain
 
 
 def get_mountain_now():
@@ -55,16 +57,16 @@ def determine_send_type():
     minute = now_mt.minute
     total_minutes = hour * 60 + minute
 
-    morning_target = MORNING_HOUR * 60
-    followup_target = FOLLOWUP_HOUR * 60 + FOLLOWUP_MINUTE
+    morning_start = MORNING_WINDOW_START[0] * 60 + MORNING_WINDOW_START[1]
+    morning_end = MORNING_WINDOW_END[0] * 60 + MORNING_WINDOW_END[1]
+    followup_start = FOLLOWUP_WINDOW_START[0] * 60 + FOLLOWUP_WINDOW_START[1]
+    followup_end = FOLLOWUP_WINDOW_END[0] * 60 + FOLLOWUP_WINDOW_END[1]
 
-    # Check morning window (6:55am - 7:05am)
-    if abs(total_minutes - morning_target) <= 5:
+    if morning_start <= total_minutes < morning_end:
         print(f'STATUS: Mountain time is {hour}:{minute:02d} — matched morning window')
         return 'morning'
 
-    # Check followup window (4:20pm - 4:40pm)
-    if abs(total_minutes - followup_target) <= 10:
+    if followup_start <= total_minutes < followup_end:
         print(f'STATUS: Mountain time is {hour}:{minute:02d} — matched followup window')
         return 'followup'
 
