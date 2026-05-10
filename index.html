@@ -166,49 +166,6 @@
       gap: 8px;
     }
 
-    /* Task card animations */
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-12px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes slideOut {
-      from {
-        opacity: 1;
-        transform: translateX(0);
-        max-height: 200px;
-        padding-top: 14px;
-        padding-bottom: 14px;
-        margin-bottom: 0;
-      }
-      to {
-        opacity: 0;
-        transform: translateX(48px);
-        max-height: 0;
-        padding-top: 0;
-        padding-bottom: 0;
-        margin-bottom: -8px;
-      }
-    }
-
-    @keyframes completePop {
-      0%   { transform: scale(1); background: transparent; border-color: var(--border); color: transparent; }
-      35%  { transform: scale(1.4); background: var(--green); border-color: var(--green); color: white; }
-      65%  { transform: scale(0.88); }
-      100% { transform: scale(1); background: var(--green); border-color: var(--green); color: white; }
-    }
-
-    @keyframes editExpand {
-      from { opacity: 0; transform: scaleY(0.95); transform-origin: top; }
-      to   { opacity: 1; transform: scaleY(1); }
-    }
-
     .task-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -218,13 +175,7 @@
       align-items: flex-start;
       gap: 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-      animation: slideIn 0.3s ease;
       overflow: hidden;
-    }
-
-    .task-card.removing {
-      animation: slideOut 0.2s ease forwards;
-      pointer-events: none;
     }
 
     .task-card.overdue { border-left: 3px solid var(--danger); }
@@ -239,20 +190,11 @@
       background: transparent;
       cursor: pointer;
       margin-top: 1px;
-      transition: border-color 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      color: transparent;
+      transition: border-color 0.15s, background 0.15s;
     }
 
     .complete-btn:hover { border-color: var(--success); }
-
-    .complete-btn.popping {
-      animation: completePop 0.35s ease forwards;
-      color: white;
-    }
+    .complete-btn:active { background: var(--success); border-color: var(--success); }
 
     .task-content { flex: 1; }
 
@@ -293,15 +235,15 @@
     .snooze-btn:hover { border-color: var(--green); color: var(--green); }
 
     .edit-btn {
-      padding: 4px 8px;
+      padding: 4px 10px;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: transparent;
-      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
       color: var(--muted);
       cursor: pointer;
       transition: border-color 0.15s, color 0.15s;
-      line-height: 1;
     }
 
     .edit-btn:hover { border-color: var(--green); color: var(--green); }
@@ -312,7 +254,6 @@
       flex-direction: column;
       gap: 8px;
       width: 100%;
-      animation: editExpand 0.18s ease;
     }
 
     .edit-input {
@@ -597,13 +538,13 @@
       const escapedName = task.task_name.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/'/g, "\\'");
 
       card.innerHTML = `
-        <button class="complete-btn" id="btn-${task.id}" onclick="completeTask('${task.id}')" title="Mark complete"></button>
+        <button class="complete-btn" onclick="completeTask('${task.id}')" title="Mark complete"></button>
         <div class="task-content">
           <div class="task-name">${task.task_name}</div>
           ${dueHtml}
           <div class="task-actions">
             ${snoozeHtml}
-            <button class="edit-btn" onclick="editTask('${task.id}', '${escapedName}', '${task.due_date || ''}')">✏️</button>
+            <button class="edit-btn" onclick="editTask('${task.id}', '${escapedName}', '${task.due_date || ''}')">Edit</button>
           </div>
         </div>
       `;
@@ -702,52 +643,39 @@
 
     async function completeTask(id) {
       const card = document.getElementById(`task-${id}`);
-      const btn = document.getElementById(`btn-${id}`);
-      if (!card || !btn) return;
+      if (!card) return;
 
-      // Fire Supabase immediately — don't wait for animation
-      const supabaseCall = fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({ status: 'complete' })
-      });
+      card.style.opacity = '0.4';
+      card.style.pointerEvents = 'none';
 
-      // Animate simultaneously
-      btn.textContent = '✓';
-      btn.classList.add('popping');
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ status: 'complete' })
+        });
 
-      // Start card removal after button pop (150ms)
-      setTimeout(() => {
-        card.classList.add('removing');
-      }, 150);
+        if (!res.ok) throw new Error('Failed to complete task');
+        card.remove();
 
-      // Remove card from DOM after animation completes (150 + 200ms)
-      setTimeout(async () => {
-        try {
-          const res = await supabaseCall;
-          if (!res.ok) throw new Error('Failed to complete task');
+        const list = document.getElementById('taskList');
+        const remaining = list.querySelectorAll('.task-card').length;
+        updateTitle(remaining);
 
-          card.remove();
-          const list = document.getElementById('taskList');
-          const remaining = list.querySelectorAll('.task-card').length;
-          updateTitle(remaining);
-
-          if (remaining === 0) {
-            list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
-          }
-        } catch (e) {
-          card.classList.remove('removing');
-          btn.classList.remove('popping');
-          btn.textContent = '';
-          showToast('Failed to mark complete. Try again.', true);
-          console.error(e);
+        if (remaining === 0) {
+          list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
         }
-      }, 350);
+      } catch (e) {
+        card.style.opacity = '1';
+        card.style.pointerEvents = 'auto';
+        showToast('Failed to mark complete. Try again.', true);
+        console.error(e);
+      }
     }
 
     async function snoozeTask(id, currentDueDate) {
@@ -787,7 +715,7 @@
       card.dataset.originalHtml = card.innerHTML;
 
       card.innerHTML = `
-        <button class="complete-btn" id="btn-${id}" onclick="completeTask('${id}')" title="Mark complete"></button>
+        <button class="complete-btn" onclick="completeTask('${id}')" title="Mark complete"></button>
         <div class="task-content">
           <div class="edit-form">
             <input class="edit-input" id="edit-name-${id}" type="text" value="${currentName.replace(/"/g, '&quot;')}" />
