@@ -5,6 +5,7 @@ from datetime import date, datetime
 SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_KEY']
 RESEND_API_KEY = os.environ['RESEND_API_KEY']
+SEND_HOUR_MDT = int(os.environ.get('SEND_HOUR_MDT', 0))
 
 PAGES_URL = 'https://JacobGC22.github.io/personal-task-system'
 
@@ -15,7 +16,6 @@ BG = '#F5F3EE'
 WHITE = '#FFFFFF'
 MUTED = '#888888'
 DANGER = '#C0392B'
-SUCCESS = '#1D4D2E'
 BORDER = '#E2DED6'
 
 
@@ -36,15 +36,16 @@ def fetch_tasks():
 
 
 def get_time_label():
-    # Determine which send this is based on UTC hour
-    hour = datetime.utcnow().hour
-    if hour == 13:
-        return '7am'
-    elif hour == 22:
-        return '4pm'
-    elif hour == 4:
-        return '10pm'
-    return 'Task Update'
+    hour = SEND_HOUR_MDT
+    if hour == 0:
+        # Fallback if env var not set
+        hour = datetime.utcnow().hour
+    if hour < 12:
+        return f'{hour}am'
+    elif hour == 12:
+        return '12pm'
+    else:
+        return f'{hour - 12}pm'
 
 
 def format_date(date_str):
@@ -68,40 +69,53 @@ def get_due_status(date_str):
 def build_task_row(task):
     status = get_due_status(task.get('due_date'))
     complete_url = f"{PAGES_URL}/complete.html?id={task['id']}"
+    snooze_url = f"{PAGES_URL}/snooze.html?id={task['id']}" if task.get('due_date') else None
 
     due_html = ''
     if task.get('due_date'):
         if status == 'overdue':
-            due_html = f'<div style="font-size:12px;color:{DANGER};font-weight:500;margin-top:3px;">Overdue · {format_date(task["due_date"])}</div>'
+            due_html = f'<div style="font-size:12px;color:{DANGER};font-weight:500;margin-top:4px;">Overdue · {format_date(task["due_date"])}</div>'
         elif status == 'today':
-            due_html = f'<div style="font-size:12px;color:#C47A00;font-weight:500;margin-top:3px;">Due Today</div>'
+            due_html = f'<div style="font-size:12px;color:#8A6A00;font-weight:500;margin-top:4px;">Due Today</div>'
         else:
-            due_html = f'<div style="font-size:12px;color:{MUTED};margin-top:3px;">Due {format_date(task["due_date"])}</div>'
+            due_html = f'<div style="font-size:12px;color:{MUTED};margin-top:4px;">Due {format_date(task["due_date"])}</div>'
 
     left_border = ''
     if status == 'overdue':
-        left_border = f'border-left:3px solid {DANGER};'
+        left_border = f'border-left:3px solid {DANGER};padding-left:0;'
     elif status == 'today':
-        left_border = f'border-left:3px solid {GOLD};'
+        left_border = f'border-left:3px solid {GOLD};padding-left:0;'
+
+    snooze_html = ''
+    if snooze_url:
+        snooze_html = f'''
+        <tr>
+          <td colspan="2" style="padding-top:8px;">
+            <a href="{snooze_url}" style="display:inline-block;padding:4px 10px;border:1px solid {BORDER};border-radius:6px;font-size:12px;color:{MUTED};text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
+              Snooze 1 day
+            </a>
+          </td>
+        </tr>'''
 
     return f'''
     <tr>
-      <td style="padding:0 0 8px 0;">
+      <td style="padding:0 0 10px 0;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:{WHITE};border:1px solid {BORDER};border-radius:10px;{left_border}">
           <tr>
-            <td style="padding:14px 16px;">
+            <td style="padding:18px 20px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="font-size:15px;font-weight:500;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;">
+                  <td style="font-size:15px;font-weight:500;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;line-height:1.4;">
                     {task['task_name']}
                   </td>
-                  <td align="right" style="white-space:nowrap;">
-                    <a href="{complete_url}" style="display:inline-block;padding:6px 14px;background:{GREEN};color:{WHITE};text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;font-family:'DM Sans',Arial,sans-serif;">
+                  <td align="right" style="white-space:nowrap;padding-left:16px;">
+                    <a href="{complete_url}" style="display:inline-block;padding:7px 16px;background:{GREEN};color:{WHITE};text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;font-family:'DM Sans',Arial,sans-serif;">
                       Done
                     </a>
                   </td>
                 </tr>
                 {f'<tr><td colspan="2">{due_html}</td></tr>' if due_html else ''}
+                {snooze_html}
               </table>
             </td>
           </tr>
@@ -127,13 +141,12 @@ def build_email(tasks, time_label):
 
     overdue_count = sum(1 for t in tasks if get_due_status(t.get('due_date')) == 'overdue')
     today_count = sum(1 for t in tasks if get_due_status(t.get('due_date')) == 'today')
-    no_due_count = sum(1 for t in tasks if not t.get('due_date'))
 
     summary_parts = []
     if overdue_count:
         summary_parts.append(f'<span style="color:{DANGER};font-weight:600;">{overdue_count} overdue</span>')
     if today_count:
-        summary_parts.append(f'<span style="color:#C47A00;font-weight:600;">{today_count} due today</span>')
+        summary_parts.append(f'<span style="color:#8A6A00;font-weight:600;">{today_count} due today</span>')
     summary_parts.append(f'{len(tasks)} total open')
     summary_html = ' &nbsp;·&nbsp; '.join(summary_parts)
 
@@ -145,25 +158,25 @@ def build_email(tasks, time_label):
   <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
 <body style="margin:0;padding:0;background:{BG};font-family:'DM Sans',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:{BG};padding:24px 0;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:{BG};padding:32px 16px;">
     <tr>
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
           <!-- Header -->
           <tr>
-            <td style="padding:0 0 24px 0;">
+            <td style="padding:0 0 28px 0;">
               <div style="font-size:20px;font-weight:600;color:{GREEN};">Tasks</div>
-              <div style="font-size:13px;color:{MUTED};margin-top:2px;">{time_label} &nbsp;·&nbsp; {today_str}</div>
+              <div style="font-size:13px;color:{MUTED};margin-top:4px;">{time_label} &nbsp;·&nbsp; {today_str}</div>
             </td>
           </tr>
 
           <!-- Summary bar -->
           <tr>
-            <td style="padding:0 0 16px 0;">
+            <td style="padding:0 0 20px 0;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background:{WHITE};border:1px solid {BORDER};border-radius:10px;">
                 <tr>
-                  <td style="padding:12px 16px;font-size:13px;font-family:'DM Sans',Arial,sans-serif;">
+                  <td style="padding:14px 20px;font-size:13px;font-family:'DM Sans',Arial,sans-serif;">
                     {summary_html}
                   </td>
                 </tr>
@@ -182,7 +195,7 @@ def build_email(tasks, time_label):
 
           <!-- Footer -->
           <tr>
-            <td style="padding:24px 0 0 0;text-align:center;">
+            <td style="padding:28px 0 0 0;text-align:center;">
               <a href="{PAGES_URL}" style="color:{GREEN};font-size:13px;font-weight:500;text-decoration:none;">
                 Open task list →
               </a>
@@ -225,12 +238,13 @@ def send_email(html, time_label, task_count):
 
 
 def main():
+    print(f'Send hour MDT: {SEND_HOUR_MDT}')
     print('Fetching tasks from Supabase...')
     tasks = fetch_tasks()
     print(f'Found {len(tasks)} open tasks')
 
     time_label = get_time_label()
-    print(f'Send time: {time_label}')
+    print(f'Time label: {time_label}')
 
     html = build_email(tasks, time_label)
     send_email(html, time_label, len(tasks))
