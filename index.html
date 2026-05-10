@@ -492,7 +492,7 @@
       <div class="form-row">
         <input type="text" id="subName" placeholder="Service name" autocomplete="off" />
         <div style="display:flex;gap:8px;">
-          <div style="flex:1;">
+          <div id="subAmountWrapper" style="flex:1;">
             <div class="date-label">Amount ($)</div>
             <input type="number" id="subAmount" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--bg);color:var(--text);outline:none;" />
           </div>
@@ -580,8 +580,10 @@
 
     function toggleTrialDateField() {
       const cadence = document.getElementById('subCadence').value;
-      document.getElementById('subNextDateWrapper').style.display = cadence === 'trial' ? 'none' : 'block';
-      document.getElementById('subTrialEndWrapper').style.display = cadence === 'trial' ? 'block' : 'none';
+      const isTrial = cadence === 'trial';
+      document.getElementById('subAmountWrapper').style.display = isTrial ? 'none' : 'flex';
+      document.getElementById('subNextDateWrapper').style.display = isTrial ? 'none' : 'block';
+      document.getElementById('subTrialEndWrapper').style.display = isTrial ? 'block' : 'none';
     }
 
     function showSubToast(msg, isError = false) {
@@ -719,19 +721,90 @@
           return card;
         }
 
-        // Paid subscriptions
-        if (paid.length > 0) {
-          paid.forEach(s => list.appendChild(buildSubCard(s)));
+        function makeCollapsibleSection(label, items, containerId) {
+          const wrapper = document.createElement('div');
+          wrapper.style.marginTop = '16px';
+
+          const arrowId = `arrow-${containerId}`;
+          const toggle = document.createElement('button');
+          toggle.style.cssText = `width:100%;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;`;
+          toggle.innerHTML = `<span>${label} (${items.length})</span><span id="${arrowId}">▸</span>`;
+
+          const innerWrapper = document.createElement('div');
+          innerWrapper.id = containerId;
+          innerWrapper.style.display = 'none';
+          innerWrapper.style.marginTop = '8px';
+
+          const innerList = document.createElement('div');
+          innerList.className = 'task-list';
+          items.forEach(s => innerList.appendChild(buildSubCard(s)));
+          innerWrapper.appendChild(innerList);
+
+          toggle.onclick = () => {
+            const isHidden = innerWrapper.style.display === 'none';
+            innerWrapper.style.display = isHidden ? 'block' : 'none';
+            document.getElementById(arrowId).textContent = isHidden ? '▾' : '▸';
+          };
+
+          wrapper.appendChild(toggle);
+          wrapper.appendChild(innerWrapper);
+          return wrapper;
         }
 
-        // Trials section
+        // Split paid into upcoming (<=90 days) and later (>90 days)
+        const paidUpcoming = paid.filter(s => {
+          const d = getDaysUntilDate(s.next_billing_date);
+          return d === null || d <= 90;
+        });
+        const paidLater = paid.filter(s => {
+          const d = getDaysUntilDate(s.next_billing_date);
+          return d !== null && d > 90;
+        });
+
+        if (paidUpcoming.length > 0) {
+          const upcomingList = document.createElement('div');
+          upcomingList.className = 'task-list';
+          paidUpcoming.forEach(s => upcomingList.appendChild(buildSubCard(s)));
+          list.appendChild(upcomingList);
+        }
+
+        if (paidLater.length > 0) {
+          list.appendChild(makeCollapsibleSection('More than 3 months out', paidLater, 'sub-later'));
+        }
+
+        // Trials — sort by end date, split by 90 days
         if (trials.length > 0) {
+          trials.sort((a, b) => {
+            if (!a.trial_end_date) return 1;
+            if (!b.trial_end_date) return -1;
+            return a.trial_end_date.localeCompare(b.trial_end_date);
+          });
+
+          const trialsUpcoming = trials.filter(s => {
+            const d = getDaysUntilDate(s.trial_end_date);
+            return d === null || d <= 90;
+          });
+          const trialsLater = trials.filter(s => {
+            const d = getDaysUntilDate(s.trial_end_date);
+            return d !== null && d > 90;
+          });
+
           const trialHeader = document.createElement('div');
           trialHeader.className = 'section-label';
           trialHeader.style.marginTop = '24px';
           trialHeader.textContent = 'Free Trials';
           list.appendChild(trialHeader);
-          trials.forEach(s => list.appendChild(buildSubCard(s)));
+
+          if (trialsUpcoming.length > 0) {
+            const trialList = document.createElement('div');
+            trialList.className = 'task-list';
+            trialsUpcoming.forEach(s => trialList.appendChild(buildSubCard(s)));
+            list.appendChild(trialList);
+          }
+
+          if (trialsLater.length > 0) {
+            list.appendChild(makeCollapsibleSection('More than 3 months out', trialsLater, 'trial-later'));
+          }
         }
 
       } catch (e) {
