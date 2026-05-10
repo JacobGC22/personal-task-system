@@ -1,0 +1,54 @@
+name: Send Task Email
+
+on:
+  workflow_dispatch:
+    inputs:
+      send_hour_mdt:
+        description: 'Hour to send (MDT, 0-23)'
+        required: true
+        type: string
+
+jobs:
+  send-email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Wait until send time
+        run: |
+          python - <<'EOF'
+          import time
+          from datetime import datetime, timezone
+
+          send_hour_mdt = int('${{ github.event.inputs.send_hour_mdt }}')
+          MDT_OFFSET = -6
+          utc_hour = (send_hour_mdt - MDT_OFFSET) % 24
+
+          now_utc = datetime.now(timezone.utc)
+          target_minute = now_utc.replace(hour=utc_hour, minute=0, second=0, microsecond=0)
+
+          wait_seconds = (target_minute - now_utc).total_seconds()
+
+          if wait_seconds > 0:
+              print(f"Waiting {int(wait_seconds)} seconds until {send_hour_mdt}:00 MDT...")
+              time.sleep(wait_seconds)
+          else:
+              print(f"Already at or past {send_hour_mdt}:00 MDT, sending now")
+          EOF
+
+      - name: Send task email
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SEND_HOUR_MDT: ${{ github.event.inputs.send_hour_mdt }}
+        run: python send_task_email.py
