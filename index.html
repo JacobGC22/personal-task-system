@@ -67,10 +67,7 @@
       transition: background 0.15s, color 0.15s;
     }
 
-    .tab-btn.active {
-      background: var(--green);
-      color: white;
-    }
+    .tab-btn.active { background: var(--green); color: white; }
 
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
@@ -272,27 +269,21 @@
       margin-bottom: 14px;
     }
 
-    .schedule-row {
+    .setting-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 10px 0;
-      border-bottom: 1px solid var(--border);
     }
 
-    .schedule-row:last-child { border-bottom: none; padding-bottom: 0; }
-    .schedule-row:first-of-type { padding-top: 0; }
-
-    .schedule-label {
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--text);
-    }
+    .setting-label { font-size: 15px; font-weight: 500; color: var(--text); }
+    .setting-sublabel { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
     .toggle {
       position: relative;
       width: 44px;
       height: 26px;
+      flex-shrink: 0;
     }
 
     .toggle input { opacity: 0; width: 0; height: 0; }
@@ -318,49 +309,29 @@
       transition: transform 0.2s;
     }
 
-    .toggle input:checked + .toggle-slider { background: var(--green); }
+    .toggle input:checked + .toggle-slider { background: var(--danger); }
     .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
-
-    .save-btn {
-      width: 100%;
-      padding: 13px;
-      background: var(--green);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-      margin-top: 4px;
-    }
-
-    .save-btn:hover { background: var(--green-dark); }
-    .save-btn:disabled { background: var(--muted); cursor: not-allowed; }
-
-    .settings-toast {
-      display: none;
-      background: var(--success);
-      color: white;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      margin-top: 10px;
-      text-align: center;
-    }
-
-    .settings-toast.error { background: var(--danger); }
-    .settings-toast.show { display: block; }
 
     .settings-note {
       font-size: 12px;
       color: var(--muted);
       margin-top: 10px;
-      text-align: center;
       line-height: 1.5;
     }
+
+    .skipped-banner {
+      display: none;
+      background: #FFF3CD;
+      border: 1px solid #F5A800;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #856404;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .skipped-banner.show { display: block; }
   </style>
 </head>
 <body>
@@ -394,40 +365,33 @@
 
   <!-- Settings Tab -->
   <div class="tab-panel" id="tab-settings">
-    <div class="settings-card">
-      <h2>Email send times (MDT)</h2>
-      <div id="scheduleList">
-        <div class="loading">Loading...</div>
-      </div>
+    <div class="skipped-banner" id="skippedBanner">
+      4:30pm followup is skipped for today.
     </div>
-    <button class="save-btn" id="saveBtn" onclick="saveSettings()">Save Settings</button>
-    <div class="settings-toast" id="settingsToast"></div>
-    <p class="settings-note">Changes take effect the following morning at 6am MDT.</p>
+
+    <div class="settings-card">
+      <h2>Today's emails</h2>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Skip 4:30pm followup</div>
+          <div class="setting-sublabel">Resets automatically each morning</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="skipToggle" onchange="toggleSkipFollowup()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="settings-note" id="skipNote"></p>
+    </div>
   </div>
 
   <script>
     const SUPABASE_URL = 'https://qesaesisbkgonaxcvvdg.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_gisnFZVNpxVPMmbxPnze6Q_7ZRSchW1';
 
-    const HOURS = [
-      { hour: 6,  label: '6:00 AM'  },
-      { hour: 7,  label: '7:00 AM'  },
-      { hour: 8,  label: '8:00 AM'  },
-      { hour: 9,  label: '9:00 AM'  },
-      { hour: 10, label: '10:00 AM' },
-      { hour: 11, label: '11:00 AM' },
-      { hour: 12, label: '12:00 PM' },
-      { hour: 13, label: '1:00 PM'  },
-      { hour: 14, label: '2:00 PM'  },
-      { hour: 15, label: '3:00 PM'  },
-      { hour: 16, label: '4:00 PM'  },
-      { hour: 17, label: '5:00 PM'  },
-      { hour: 18, label: '6:00 PM'  },
-      { hour: 19, label: '7:00 PM'  },
-      { hour: 20, label: '8:00 PM'  },
-      { hour: 21, label: '9:00 PM'  },
-      { hour: 22, label: '10:00 PM' },
-    ];
+    function getMountainDate() {
+      return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+    }
 
     function switchTab(tab, btn) {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -450,7 +414,7 @@
 
     function getDueStatus(dateStr) {
       if (!dateStr) return null;
-      const t = today();
+      const t = getMountainDate();
       if (dateStr < t) return 'overdue';
       if (dateStr === t) return 'today';
       return 'upcoming';
@@ -461,13 +425,6 @@
       t.textContent = msg;
       t.className = 'toast show' + (isError ? ' error' : '');
       setTimeout(() => { t.className = 'toast'; }, 2500);
-    }
-
-    function showSettingsToast(msg, isError = false) {
-      const t = document.getElementById('settingsToast');
-      t.textContent = msg;
-      t.className = 'settings-toast show' + (isError ? ' error' : '');
-      setTimeout(() => { t.className = 'settings-toast'; }, 2500);
     }
 
     async function fetchTasks() {
@@ -482,6 +439,10 @@
       const list = document.getElementById('taskList');
       try {
         const tasks = await fetchTasks();
+
+        // Update tab title
+        document.title = tasks.length > 0 ? `Tasks (${tasks.length})` : 'Tasks';
+
         if (tasks.length === 0) {
           list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
           return;
@@ -588,6 +549,10 @@
         const list = document.getElementById('taskList');
         if (list.children.length === 0) {
           list.innerHTML = `<div class="empty-state"><div class="icon">✓</div>No open tasks</div>`;
+          document.title = 'Tasks';
+        } else {
+          const remaining = list.querySelectorAll('.task-card').length;
+          document.title = remaining > 0 ? `Tasks (${remaining})` : 'Tasks';
         }
       } catch (e) {
         if (card) card.classList.remove('completing');
@@ -627,69 +592,77 @@
     }
 
     async function loadSettings() {
-      const container = document.getElementById('scheduleList');
-      container.innerHTML = '<div class="loading">Loading...</div>';
+      const toggle = document.getElementById('skipToggle');
+      const note = document.getElementById('skipNote');
+      const banner = document.getElementById('skippedBanner');
+      const today = getMountainDate();
 
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.send_schedule`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.skip_followup_date`, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         });
 
-        if (!res.ok) throw new Error('Failed to load settings');
         const rows = await res.json();
-        const schedule = rows.length > 0 ? rows[0].value : { "7": true, "16": true, "22": true };
+        const isSkipped = rows.length > 0 && rows[0].value?.date === today;
 
-        container.innerHTML = '';
-        HOURS.forEach(({ hour, label }) => {
-          const isOn = !!schedule[String(hour)];
-          const row = document.createElement('div');
-          row.className = 'schedule-row';
-          row.innerHTML = `
-            <span class="schedule-label">${label}</span>
-            <label class="toggle">
-              <input type="checkbox" id="hour-${hour}" ${isOn ? 'checked' : ''}>
-              <span class="toggle-slider"></span>
-            </label>
-          `;
-          container.appendChild(row);
-        });
+        toggle.checked = isSkipped;
+
+        if (isSkipped) {
+          note.textContent = "4:30pm email is skipped for today.";
+          banner.classList.add('show');
+        } else {
+          note.textContent = "4:30pm followup will send today.";
+          banner.classList.remove('show');
+        }
       } catch (e) {
-        container.innerHTML = '<div class="empty-state">Failed to load settings.</div>';
-        console.error(e);
+        console.error('Failed to load settings', e);
       }
     }
 
-    async function saveSettings() {
-      const btn = document.getElementById('saveBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
-
-      const schedule = {};
-      HOURS.forEach(({ hour }) => {
-        const el = document.getElementById(`hour-${hour}`);
-        if (el) schedule[String(hour)] = el.checked;
-      });
+    async function toggleSkipFollowup() {
+      const toggle = document.getElementById('skipToggle');
+      const note = document.getElementById('skipNote');
+      const banner = document.getElementById('skippedBanner');
+      const today = getMountainDate();
 
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.send_schedule`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({ value: schedule })
-        });
+        if (toggle.checked) {
+          // Skip followup
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({ key: 'skip_followup_date', value: { date: today } })
+          });
 
-        if (!res.ok) throw new Error('Failed to save settings');
-        showSettingsToast('Settings saved.');
+          if (!res.ok) throw new Error('Failed to skip');
+          note.textContent = "4:30pm email is skipped for today.";
+          banner.classList.add('show');
+        } else {
+          // Unskip — set date to empty string so it won't match today
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({ key: 'skip_followup_date', value: { date: '' } })
+          });
+
+          if (!res.ok) throw new Error('Failed to unskip');
+          note.textContent = "4:30pm followup will send today.";
+          banner.classList.remove('show');
+        }
       } catch (e) {
-        showSettingsToast('Failed to save. Try again.', true);
-        console.error(e);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Settings';
+        // Revert toggle on error
+        toggle.checked = !toggle.checked;
+        console.error('Failed to update skip setting', e);
       }
     }
 
