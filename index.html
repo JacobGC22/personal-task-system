@@ -26,14 +26,14 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 24px 16px 80px;
+      padding: 24px 16px 100px;
     }
 
     header {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 28px;
+      margin-bottom: 24px;
     }
 
     header h1 {
@@ -42,6 +42,38 @@
       color: var(--green);
       letter-spacing: -0.3px;
     }
+
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .tab-btn.active {
+      background: var(--green);
+      color: white;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
     .add-form {
       background: var(--surface);
@@ -78,9 +110,7 @@
       transition: border-color 0.15s;
     }
 
-    input[type="text"] {
-      width: 100%;
-    }
+    input[type="text"] { width: 100%; }
 
     input[type="date"] {
       width: auto;
@@ -89,13 +119,9 @@
     }
 
     input[type="text"]:focus,
-    input[type="date"]:focus {
-      border-color: var(--green);
-    }
+    input[type="date"]:focus { border-color: var(--green); }
 
-    input[type="date"]:valid {
-      color: var(--text);
-    }
+    input[type="date"]:valid { color: var(--text); }
 
     .btn-add {
       width: 100%;
@@ -112,18 +138,9 @@
       margin-top: 2px;
     }
 
-    .btn-add:active {
-      transform: scale(0.98);
-    }
-
-    .btn-add:hover {
-      background: var(--green-dark);
-    }
-
-    .btn-add:disabled {
-      background: var(--muted);
-      cursor: not-allowed;
-    }
+    .btn-add:active { transform: scale(0.98); }
+    .btn-add:hover { background: var(--green-dark); }
+    .btn-add:disabled { background: var(--muted); cursor: not-allowed; }
 
     .toast {
       display: none;
@@ -137,13 +154,8 @@
       text-align: center;
     }
 
-    .toast.error {
-      background: var(--danger);
-    }
-
-    .toast.show {
-      display: block;
-    }
+    .toast.error { background: var(--danger); }
+    .toast.show { display: block; }
 
     .section-label {
       font-size: 13px;
@@ -170,17 +182,9 @@
       transition: opacity 0.2s;
     }
 
-    .task-card.completing {
-      opacity: 0.4;
-    }
-
-    .task-card.overdue {
-      border-left: 3px solid var(--danger);
-    }
-
-    .task-card.due-today {
-      border-left: 3px solid var(--gold);
-    }
+    .task-card.completing { opacity: 0.4; }
+    .task-card.overdue { border-left: 3px solid var(--danger); }
+    .task-card.due-today { border-left: 3px solid var(--gold); }
 
     .complete-btn {
       width: 22px;
@@ -192,23 +196,12 @@
       cursor: pointer;
       margin-top: 1px;
       transition: border-color 0.15s, background 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
-    .complete-btn:hover {
-      border-color: var(--success);
-    }
+    .complete-btn:hover { border-color: var(--success); }
+    .complete-btn:active { background: var(--success); border-color: var(--success); }
 
-    .complete-btn:active {
-      background: var(--success);
-      border-color: var(--success);
-    }
-
-    .task-content {
-      flex: 1;
-    }
+    .task-content { flex: 1; }
 
     .task-name {
       font-size: 15px;
@@ -223,15 +216,28 @@
       margin-top: 4px;
     }
 
-    .task-due.overdue {
-      color: var(--danger);
-      font-weight: 500;
+    .task-due.overdue { color: var(--danger); font-weight: 500; }
+    .task-due.today { color: #8A6A00; font-weight: 500; }
+
+    .task-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
     }
 
-    .task-due.today {
-      color: #8A6A00;
-      font-weight: 500;
+    .snooze-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
     }
+
+    .snooze-btn:hover { border-color: var(--green); color: var(--green); }
 
     .empty-state {
       text-align: center;
@@ -240,10 +246,7 @@
       font-size: 14px;
     }
 
-    .empty-state .icon {
-      font-size: 32px;
-      margin-bottom: 10px;
-    }
+    .empty-state .icon { font-size: 32px; margin-bottom: 10px; }
 
     .loading {
       text-align: center;
@@ -252,8 +255,111 @@
       font-size: 14px;
     }
 
-    .no-due {
-      margin-top: 24px;
+    /* Settings */
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .settings-card h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .schedule-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .schedule-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .schedule-row:first-of-type { padding-top: 0; }
+
+    .schedule-label {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 26px;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 26px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-slider:before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle input:checked + .toggle-slider { background: var(--green); }
+    .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+    .save-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+
+    .save-btn:hover { background: var(--green-dark); }
+    .save-btn:disabled { background: var(--muted); cursor: not-allowed; }
+
+    .settings-toast {
+      display: none;
+      background: var(--success);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .settings-toast.error { background: var(--danger); }
+    .settings-toast.show { display: block; }
+
+    .settings-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+      text-align: center;
+      line-height: 1.5;
     }
   </style>
 </head>
@@ -263,24 +369,73 @@
     <h1>Tasks</h1>
   </header>
 
-  <div class="add-form">
-    <h2>Add Task</h2>
-    <div class="form-row">
-      <input type="text" id="taskInput" placeholder="What needs to get done?" autocomplete="off" />
-      <input type="date" id="dueDateInput" />
-      <button class="btn-add" id="addBtn" onclick="addTask()">Add Task</button>
-    </div>
-    <div class="toast" id="toast"></div>
+  <div class="tab-nav">
+    <button class="tab-btn active" id="tab-btn-tasks" onclick="switchTab('tasks', this)">Tasks</button>
+    <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings', this)">Settings</button>
   </div>
 
-  <div class="section-label">Open Tasks</div>
-  <div class="task-list" id="taskList">
-    <div class="loading">Loading...</div>
+  <!-- Tasks Tab -->
+  <div class="tab-panel active" id="tab-tasks">
+    <div class="add-form">
+      <h2>Add task</h2>
+      <div class="form-row">
+        <input type="text" id="taskInput" placeholder="What needs to get done?" autocomplete="off" />
+        <input type="date" id="dueDateInput" />
+        <button class="btn-add" id="addBtn" onclick="addTask()">Add Task</button>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div class="section-label">Open tasks</div>
+    <div class="task-list" id="taskList">
+      <div class="loading">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Settings Tab -->
+  <div class="tab-panel" id="tab-settings">
+    <div class="settings-card">
+      <h2>Email send times (MDT)</h2>
+      <div id="scheduleList">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+    <button class="save-btn" id="saveBtn" onclick="saveSettings()">Save Settings</button>
+    <div class="settings-toast" id="settingsToast"></div>
+    <p class="settings-note">Changes take effect the following morning at 6am MDT.</p>
   </div>
 
   <script>
     const SUPABASE_URL = 'https://qesaesisbkgonaxcvvdg.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_gisnFZVNpxVPMmbxPnze6Q_7ZRSchW1';
+
+    const HOURS = [
+      { hour: 6,  label: '6:00 AM'  },
+      { hour: 7,  label: '7:00 AM'  },
+      { hour: 8,  label: '8:00 AM'  },
+      { hour: 9,  label: '9:00 AM'  },
+      { hour: 10, label: '10:00 AM' },
+      { hour: 11, label: '11:00 AM' },
+      { hour: 12, label: '12:00 PM' },
+      { hour: 13, label: '1:00 PM'  },
+      { hour: 14, label: '2:00 PM'  },
+      { hour: 15, label: '3:00 PM'  },
+      { hour: 16, label: '4:00 PM'  },
+      { hour: 17, label: '5:00 PM'  },
+      { hour: 18, label: '6:00 PM'  },
+      { hour: 19, label: '7:00 PM'  },
+      { hour: 20, label: '8:00 PM'  },
+      { hour: 21, label: '9:00 PM'  },
+      { hour: 22, label: '10:00 PM' },
+    ];
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      btn.classList.add('active');
+      if (tab === 'settings') loadSettings();
+    }
 
     function today() {
       return new Date().toISOString().split('T')[0];
@@ -308,12 +463,16 @@
       setTimeout(() => { t.className = 'toast'; }, 2500);
     }
 
+    function showSettingsToast(msg, isError = false) {
+      const t = document.getElementById('settingsToast');
+      t.textContent = msg;
+      t.className = 'settings-toast show' + (isError ? ' error' : '');
+      setTimeout(() => { t.className = 'settings-toast'; }, 2500);
+    }
+
     async function fetchTasks() {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?status=eq.open&order=due_date.asc.nullslast,created_at.asc`, {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`
-        }
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
       });
       if (!res.ok) throw new Error('Failed to fetch tasks');
       return res.json();
@@ -332,22 +491,29 @@
         tasks.forEach(task => {
           const status = getDueStatus(task.due_date);
           const card = document.createElement('div');
-          card.className = 'task-card' + (status === 'overdue' ? ' overdue' : '') + (status === 'today' ? ' due-today' : '');
+          card.className = 'task-card' +
+            (status === 'overdue' ? ' overdue' : '') +
+            (status === 'today' ? ' due-today' : '');
           card.id = `task-${task.id}`;
 
           let dueHtml = '';
           if (task.due_date) {
             const label = status === 'overdue' ? `Overdue · ${formatDate(task.due_date)}` :
-                          status === 'today' ? 'Due Today' :
+                          status === 'today'   ? 'Due Today' :
                           `Due ${formatDate(task.due_date)}`;
             dueHtml = `<div class="task-due ${status === 'overdue' ? 'overdue' : status === 'today' ? 'today' : ''}">${label}</div>`;
           }
+
+          const snoozeHtml = task.due_date
+            ? `<div class="task-actions"><button class="snooze-btn" onclick="snoozeTask('${task.id}', '${task.due_date}')">Snooze 1 day</button></div>`
+            : '';
 
           card.innerHTML = `
             <button class="complete-btn" onclick="completeTask('${task.id}')" title="Mark complete"></button>
             <div class="task-content">
               <div class="task-name">${task.task_name}</div>
               ${dueHtml}
+              ${snoozeHtml}
             </div>
           `;
           list.appendChild(card);
@@ -373,12 +539,6 @@
       btn.disabled = true;
       btn.textContent = 'Adding...';
 
-      const payload = {
-        task_name: name,
-        due_date: dateInput.value || null,
-        status: 'open'
-      };
-
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
           method: 'POST',
@@ -388,11 +548,10 @@
             'Content-Type': 'application/json',
             'Prefer': 'return=minimal'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ task_name: name, due_date: dateInput.value || null, status: 'open' })
         });
 
         if (!res.ok) throw new Error('Failed to add task');
-
         nameInput.value = '';
         dateInput.value = '';
         nameInput.focus();
@@ -434,6 +593,103 @@
         if (card) card.classList.remove('completing');
         showToast('Failed to mark complete. Try again.', true);
         console.error(e);
+      }
+    }
+
+    async function snoozeTask(id, currentDueDate) {
+      const card = document.getElementById(`task-${id}`);
+      if (card) card.classList.add('completing');
+
+      const d = new Date(currentDueDate + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      const newDate = d.toISOString().split('T')[0];
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ due_date: newDate })
+        });
+
+        if (!res.ok) throw new Error('Failed to snooze task');
+        showToast('Snoozed by 1 day.');
+        loadTasks();
+      } catch (e) {
+        if (card) card.classList.remove('completing');
+        showToast('Failed to snooze. Try again.', true);
+        console.error(e);
+      }
+    }
+
+    async function loadSettings() {
+      const container = document.getElementById('scheduleList');
+      container.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.send_schedule`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        });
+
+        if (!res.ok) throw new Error('Failed to load settings');
+        const rows = await res.json();
+        const schedule = rows.length > 0 ? rows[0].value : { "7": true, "16": true, "22": true };
+
+        container.innerHTML = '';
+        HOURS.forEach(({ hour, label }) => {
+          const isOn = !!schedule[String(hour)];
+          const row = document.createElement('div');
+          row.className = 'schedule-row';
+          row.innerHTML = `
+            <span class="schedule-label">${label}</span>
+            <label class="toggle">
+              <input type="checkbox" id="hour-${hour}" ${isOn ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
+          `;
+          container.appendChild(row);
+        });
+      } catch (e) {
+        container.innerHTML = '<div class="empty-state">Failed to load settings.</div>';
+        console.error(e);
+      }
+    }
+
+    async function saveSettings() {
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      const schedule = {};
+      HOURS.forEach(({ hour }) => {
+        const el = document.getElementById(`hour-${hour}`);
+        if (el) schedule[String(hour)] = el.checked;
+      });
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.send_schedule`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ value: schedule })
+        });
+
+        if (!res.ok) throw new Error('Failed to save settings');
+        showSettingsToast('Settings saved.');
+      } catch (e) {
+        showSettingsToast('Failed to save. Try again.', true);
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Settings';
       }
     }
 
