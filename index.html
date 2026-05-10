@@ -498,15 +498,20 @@
           </div>
           <div style="flex:1;">
             <div class="date-label">Cadence</div>
-            <select id="subCadence" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--bg);color:var(--text);outline:none;">
+            <select id="subCadence" onchange="toggleTrialDateField()" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--bg);color:var(--text);outline:none;">
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
+              <option value="trial">Free Trial</option>
             </select>
           </div>
         </div>
-        <div>
+        <div id="subNextDateWrapper">
           <div class="date-label">Next billing date (optional)</div>
           <input type="date" id="subNextDate" style="width:auto;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--muted);outline:none;" />
+        </div>
+        <div id="subTrialEndWrapper" style="display:none;">
+          <div class="date-label">Trial ends on</div>
+          <input type="date" id="subTrialEnd" style="width:auto;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--muted);outline:none;" />
         </div>
         <button class="btn-add" onclick="addSubscription()">Add Subscription</button>
       </div>
@@ -573,6 +578,12 @@
       if (tab === 'subscriptions') loadSubscriptions();
     }
 
+    function toggleTrialDateField() {
+      const cadence = document.getElementById('subCadence').value;
+      document.getElementById('subNextDateWrapper').style.display = cadence === 'trial' ? 'none' : 'block';
+      document.getElementById('subTrialEndWrapper').style.display = cadence === 'trial' ? 'block' : 'none';
+    }
+
     function showSubToast(msg, isError = false) {
       const t = document.getElementById('subToast');
       t.textContent = msg;
@@ -615,10 +626,13 @@
           return;
         }
 
-        // Calculate totals
+        const paid = subs.filter(s => s.cadence !== 'trial');
+        const trials = subs.filter(s => s.cadence === 'trial');
+
+        // Calculate totals from paid only
         let monthlyTotal = 0;
         let yearlyTotal = 0;
-        subs.forEach(s => {
+        paid.forEach(s => {
           const amt = parseFloat(s.amount);
           if (s.cadence === 'monthly') {
             monthlyTotal += amt;
@@ -631,47 +645,95 @@
 
         document.getElementById('monthlyTotal').textContent = formatCurrency(monthlyTotal);
         document.getElementById('yearlyTotal').textContent = formatCurrency(yearlyTotal);
-        summary.style.display = 'block';
+        summary.style.display = paid.length > 0 ? 'block' : 'none';
 
         list.innerHTML = '';
-        subs.forEach(s => {
-          const daysAway = getDaysUntilDate(s.next_billing_date);
-          const card = document.createElement('div');
 
-          let billingHtml = '';
+        function buildSubCard(s) {
+          const isTrial = s.cadence === 'trial';
+          const dateStr = isTrial ? s.trial_end_date : s.next_billing_date;
+          const daysAway = getDaysUntilDate(dateStr);
+          const card = document.createElement('div');
           let cardClass = 'task-card';
-          if (s.next_billing_date) {
-            if (daysAway !== null && daysAway <= 7 && daysAway >= 0) {
-              billingHtml = `<div class="task-due today">Billing in ${daysAway} day${daysAway !== 1 ? 's' : ''} · ${formatSubDate(s.next_billing_date)}</div>`;
-              cardClass += ' due-today';
-            } else if (daysAway !== null && daysAway < 0) {
-              billingHtml = `<div class="task-due overdue">Overdue · ${formatSubDate(s.next_billing_date)}</div>`;
-              cardClass += ' overdue';
-            } else {
-              billingHtml = `<div class="task-due">Next: ${formatSubDate(s.next_billing_date)}</div>`;
+          let billingHtml = '';
+
+          if (isTrial) {
+            if (dateStr) {
+              if (daysAway !== null && daysAway <= 3 && daysAway >= 0) {
+                billingHtml = `<div class="task-due overdue">Trial ends in ${daysAway} day${daysAway !== 1 ? 's' : ''} · ${formatSubDate(dateStr)}</div>`;
+                cardClass += ' overdue';
+              } else if (daysAway !== null && daysAway < 0) {
+                billingHtml = `<div class="task-due overdue">Trial ended · ${formatSubDate(dateStr)}</div>`;
+                cardClass += ' overdue';
+              } else {
+                billingHtml = `<div class="task-due">Ends ${formatSubDate(dateStr)}${daysAway !== null ? ` · in ${daysAway} days` : ''}</div>`;
+              }
             }
+          } else {
+            const cadenceLabel = s.cadence === 'monthly' ? '/mo' : '/yr';
+            if (dateStr) {
+              if (daysAway !== null && daysAway <= 7 && daysAway >= 0) {
+                billingHtml = `<div class="task-due today">Billing in ${daysAway} day${daysAway !== 1 ? 's' : ''} · ${formatSubDate(dateStr)}</div>`;
+                cardClass += ' due-today';
+              } else if (daysAway !== null && daysAway < 0) {
+                billingHtml = `<div class="task-due overdue">Overdue · ${formatSubDate(dateStr)}</div>`;
+                cardClass += ' overdue';
+              } else {
+                billingHtml = `<div class="task-due">Next: ${formatSubDate(dateStr)}</div>`;
+              }
+            }
+
+            const amountDisplay = `<div style="font-size:15px;font-weight:600;color:var(--green);white-space:nowrap;padding-left:12px;">${formatCurrency(s.amount)}<span style="font-size:12px;font-weight:400;color:var(--muted);">${cadenceLabel}</span></div>`;
+            const escapedName = s.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            card.className = cardClass;
+            card.id = `sub-${s.id}`;
+            card.innerHTML = `
+              <div class="task-content">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                  <div class="task-name">${s.name}</div>
+                  ${amountDisplay}
+                </div>
+                ${billingHtml}
+                <div class="task-actions">
+                  <button class="edit-btn" onclick="editSubscription('${s.id}', '${escapedName}', ${s.amount}, '${s.cadence}', '${s.next_billing_date || ''}', '${s.trial_end_date || ''}')">Edit</button>
+                  <button class="snooze-btn" onclick="deleteSubscription('${s.id}', '${escapedName}')">Remove</button>
+                </div>
+              </div>
+            `;
+            return card;
           }
 
-          const cadenceLabel = s.cadence === 'monthly' ? '/mo' : '/yr';
           const escapedName = s.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-
           card.className = cardClass;
           card.id = `sub-${s.id}`;
           card.innerHTML = `
             <div class="task-content">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                <div class="task-name">${s.name}</div>
-                <div style="font-size:15px;font-weight:600;color:var(--green);white-space:nowrap;padding-left:12px;">${formatCurrency(s.amount)}<span style="font-size:12px;font-weight:400;color:var(--muted);">${cadenceLabel}</span></div>
-              </div>
+              <div class="task-name">${s.name} <span style="font-size:11px;color:var(--muted);font-weight:400;">FREE TRIAL</span></div>
               ${billingHtml}
               <div class="task-actions">
-                <button class="edit-btn" onclick="editSubscription('${s.id}', '${escapedName}', ${s.amount}, '${s.cadence}', '${s.next_billing_date || ''}')">Edit</button>
+                <button class="edit-btn" onclick="editSubscription('${s.id}', '${escapedName}', ${s.amount || 0}, '${s.cadence}', '${s.next_billing_date || ''}', '${s.trial_end_date || ''}')">Edit</button>
                 <button class="snooze-btn" onclick="deleteSubscription('${s.id}', '${escapedName}')">Remove</button>
               </div>
             </div>
           `;
-          list.appendChild(card);
-        });
+          return card;
+        }
+
+        // Paid subscriptions
+        if (paid.length > 0) {
+          paid.forEach(s => list.appendChild(buildSubCard(s)));
+        }
+
+        // Trials section
+        if (trials.length > 0) {
+          const trialHeader = document.createElement('div');
+          trialHeader.className = 'section-label';
+          trialHeader.style.marginTop = '24px';
+          trialHeader.textContent = 'Free Trials';
+          list.appendChild(trialHeader);
+          trials.forEach(s => list.appendChild(buildSubCard(s)));
+        }
+
       } catch (e) {
         list.innerHTML = `<div class="empty-state">Failed to load subscriptions.</div>`;
         console.error(e);
@@ -680,12 +742,18 @@
 
     async function addSubscription() {
       const name = document.getElementById('subName').value.trim();
-      const amount = parseFloat(document.getElementById('subAmount').value);
+      const amount = parseFloat(document.getElementById('subAmount').value) || 0;
       const cadence = document.getElementById('subCadence').value;
       const nextDate = document.getElementById('subNextDate').value || null;
+      const trialEnd = document.getElementById('subTrialEnd').value || null;
 
       if (!name) { showSubToast('Please enter a service name.', true); return; }
-      if (isNaN(amount) || amount <= 0) { showSubToast('Please enter a valid amount.', true); return; }
+      if (cadence !== 'trial' && (isNaN(amount) || amount <= 0)) { showSubToast('Please enter a valid amount.', true); return; }
+      if (cadence === 'trial' && !trialEnd) { showSubToast('Please enter a trial end date.', true); return; }
+
+      const payload = { name, cadence };
+      if (cadence !== 'trial') { payload.amount = amount; payload.next_billing_date = nextDate; }
+      if (cadence === 'trial') { payload.amount = 0; payload.trial_end_date = trialEnd; }
 
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/subscriptions`, {
@@ -696,14 +764,15 @@
             'Content-Type': 'application/json',
             'Prefer': 'return=minimal'
           },
-          body: JSON.stringify({ name, amount, cadence, next_billing_date: nextDate })
+          body: JSON.stringify(payload)
         });
 
         if (!res.ok) throw new Error('Failed to add subscription');
         document.getElementById('subName').value = '';
         document.getElementById('subAmount').value = '';
         document.getElementById('subNextDate').value = '';
-        showSubToast('Subscription added.');
+        document.getElementById('subTrialEnd').value = '';
+        showSubToast('Added.');
         loadSubscriptions();
       } catch (e) {
         showSubToast('Failed to add. Try again.', true);
@@ -711,17 +780,19 @@
       }
     }
 
-    function editSubscription(id, currentName, currentAmount, currentCadence, currentDate) {
+    function editSubscription(id, currentName, currentAmount, currentCadence, currentDate, currentTrialEnd) {
       const card = document.getElementById(`sub-${id}`);
       if (!card) return;
       card.dataset.originalHtml = card.innerHTML;
+
+      const isTrial = currentCadence === 'trial';
 
       card.innerHTML = `
         <div class="task-content">
           <div class="edit-form">
             <input class="edit-input" id="edit-sub-name-${id}" type="text" value="${currentName.replace(/"/g, '&quot;')}" />
             <div style="display:flex;gap:8px;">
-              <div style="flex:1;">
+              <div style="flex:1;${isTrial ? 'display:none;' : ''}">
                 <div class="date-label">Amount ($)</div>
                 <input class="edit-input" id="edit-sub-amount-${id}" type="number" step="0.01" min="0" value="${currentAmount}" style="margin-top:0;" />
               </div>
@@ -730,15 +801,20 @@
                 <select id="edit-sub-cadence-${id}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--text);outline:none;">
                   <option value="monthly" ${currentCadence === 'monthly' ? 'selected' : ''}>Monthly</option>
                   <option value="yearly" ${currentCadence === 'yearly' ? 'selected' : ''}>Yearly</option>
+                  <option value="trial" ${currentCadence === 'trial' ? 'selected' : ''}>Free Trial</option>
                 </select>
               </div>
             </div>
-            <div>
+            ${!isTrial ? `<div>
               <div class="date-label">Next billing date</div>
               <input class="edit-date" id="edit-sub-date-${id}" type="date" value="${currentDate}" />
-            </div>
+            </div>` : ''}
+            ${isTrial ? `<div>
+              <div class="date-label">Trial ends on</div>
+              <input class="edit-date" id="edit-sub-trial-${id}" type="date" value="${currentTrialEnd}" />
+            </div>` : ''}
             <div class="edit-actions">
-              <button class="save-edit-btn" onclick="saveSubscription('${id}')">Save</button>
+              <button class="save-edit-btn" onclick="saveSubscription('${id}', '${currentCadence}')">Save</button>
               <button class="cancel-edit-btn" onclick="cancelSubEdit('${id}')">Cancel</button>
             </div>
           </div>
@@ -753,14 +829,25 @@
       card.innerHTML = card.dataset.originalHtml;
     }
 
-    async function saveSubscription(id) {
+    async function saveSubscription(id, originalCadence) {
       const name = document.getElementById(`edit-sub-name-${id}`).value.trim();
-      const amount = parseFloat(document.getElementById(`edit-sub-amount-${id}`).value);
       const cadence = document.getElementById(`edit-sub-cadence-${id}`).value;
-      const nextDate = document.getElementById(`edit-sub-date-${id}`).value || null;
+      const isTrial = cadence === 'trial';
+
+      const amountEl = document.getElementById(`edit-sub-amount-${id}`);
+      const amount = amountEl ? parseFloat(amountEl.value) : 0;
+
+      const dateEl = document.getElementById(`edit-sub-date-${id}`);
+      const trialEl = document.getElementById(`edit-sub-trial-${id}`);
+      const nextDate = dateEl ? dateEl.value || null : null;
+      const trialEnd = trialEl ? trialEl.value || null : null;
 
       if (!name) return;
-      if (isNaN(amount) || amount <= 0) return;
+      if (!isTrial && (isNaN(amount) || amount <= 0)) return;
+
+      const payload = { name, cadence };
+      if (!isTrial) { payload.amount = amount; payload.next_billing_date = nextDate; payload.trial_end_date = null; }
+      if (isTrial) { payload.amount = 0; payload.trial_end_date = trialEnd; payload.next_billing_date = null; }
 
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?id=eq.${id}`, {
@@ -771,11 +858,11 @@
             'Content-Type': 'application/json',
             'Prefer': 'return=minimal'
           },
-          body: JSON.stringify({ name, amount, cadence, next_billing_date: nextDate })
+          body: JSON.stringify(payload)
         });
 
         if (!res.ok) throw new Error('Failed to save');
-        showSubToast('Subscription updated.');
+        showSubToast('Updated.');
         loadSubscriptions();
       } catch (e) {
         showSubToast('Failed to save. Try again.', true);
