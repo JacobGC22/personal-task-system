@@ -4,18 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tasks</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --navy: #1B3A8C;
-      --gold: #F5A800;
-      --bg: #F7F6F2;
+      --green: #1D4D2E;
+      --green-dark: #163D24;
+      --gold: #C8993A;
+      --bg: #F5F3EE;
       --surface: #FFFFFF;
       --text: #1a1a1a;
       --muted: #888;
-      --border: #E5E3DC;
+      --border: #E2DED6;
       --danger: #C0392B;
-      --success: #27AE60;
+      --success: #1D4D2E;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -35,17 +36,10 @@
       margin-bottom: 28px;
     }
 
-    header .logo {
-      width: 10px;
-      height: 32px;
-      background: var(--gold);
-      border-radius: 2px;
-    }
-
     header h1 {
       font-size: 20px;
       font-weight: 600;
-      color: var(--navy);
+      color: var(--green);
       letter-spacing: -0.3px;
     }
 
@@ -59,10 +53,8 @@
     }
 
     .add-form h2 {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
       color: var(--muted);
       margin-bottom: 12px;
     }
@@ -75,7 +67,6 @@
 
     input[type="text"],
     input[type="date"] {
-      width: 100%;
       padding: 12px 14px;
       border: 1.5px solid var(--border);
       border-radius: 8px;
@@ -87,14 +78,19 @@
       transition: border-color 0.15s;
     }
 
-    input[type="text"]:focus,
-    input[type="date"]:focus {
-      border-color: var(--navy);
+    input[type="text"] {
+      width: 100%;
     }
 
     input[type="date"] {
+      width: auto;
       font-size: 14px;
       color: var(--muted);
+    }
+
+    input[type="text"]:focus,
+    input[type="date"]:focus {
+      border-color: var(--green);
     }
 
     input[type="date"]:valid {
@@ -104,7 +100,7 @@
     .btn-add {
       width: 100%;
       padding: 13px;
-      background: var(--navy);
+      background: var(--green);
       color: white;
       border: none;
       border-radius: 8px;
@@ -121,7 +117,7 @@
     }
 
     .btn-add:hover {
-      background: #15307a;
+      background: var(--green-dark);
     }
 
     .btn-add:disabled {
@@ -150,10 +146,8 @@
     }
 
     .section-label {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
       color: var(--muted);
       margin-bottom: 10px;
     }
@@ -224,7 +218,6 @@
     }
 
     .task-due {
-      font-family: 'DM Mono', monospace;
       font-size: 12px;
       color: var(--muted);
       margin-top: 4px;
@@ -236,7 +229,7 @@
     }
 
     .task-due.today {
-      color: #C47A00;
+      color: #8A6A00;
       font-weight: 500;
     }
 
@@ -267,7 +260,6 @@
 <body>
 
   <header>
-    <div class="logo"></div>
     <h1>Tasks</h1>
   </header>
 
