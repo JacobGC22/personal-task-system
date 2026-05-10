@@ -492,10 +492,6 @@
       <div class="form-row">
         <input type="text" id="subName" placeholder="Service name" autocomplete="off" />
         <div style="display:flex;gap:8px;">
-          <div id="subAmountWrapper" style="flex:1;">
-            <div class="date-label">Amount ($)</div>
-            <input type="number" id="subAmount" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--bg);color:var(--text);outline:none;" />
-          </div>
           <div style="flex:1;">
             <div class="date-label">Cadence</div>
             <select id="subCadence" onchange="toggleTrialDateField()" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--bg);color:var(--text);outline:none;">
@@ -503,6 +499,10 @@
               <option value="yearly">Yearly</option>
               <option value="trial">Free Trial</option>
             </select>
+          </div>
+          <div id="subAmountWrapper" style="flex:1;">
+            <div class="date-label">Amount ($)</div>
+            <input type="number" id="subAmount" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--bg);color:var(--text);outline:none;" />
           </div>
         </div>
         <div id="subNextDateWrapper">
@@ -631,10 +631,11 @@
         const paid = subs.filter(s => s.cadence !== 'trial');
         const trials = subs.filter(s => s.cadence === 'trial');
 
-        // Calculate totals from paid only
+        // Calculate totals from paid only, excluding annual fees
         let monthlyTotal = 0;
         let yearlyTotal = 0;
         paid.forEach(s => {
+          if (s.name.toLowerCase().includes('annual fee')) return;
           const amt = parseFloat(s.amount);
           if (s.cadence === 'monthly') {
             monthlyTotal += amt;
