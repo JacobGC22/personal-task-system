@@ -420,6 +420,7 @@
 
   <div class="tab-nav">
     <button class="tab-btn active" id="tab-btn-tasks" onclick="switchTab('tasks', this)">Tasks</button>
+    <button class="tab-btn" id="tab-btn-birthdays" onclick="switchTab('birthdays', this)">Birthdays</button>
     <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings', this)">Settings</button>
   </div>
 
@@ -439,6 +440,46 @@
 
     <div class="section-label">Open tasks</div>
     <div class="task-list" id="taskList">
+      <div class="loading">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Birthdays Tab -->
+  <div class="tab-panel" id="tab-birthdays">
+    <div class="add-form">
+      <div class="form-row">
+        <input type="text" id="birthdayName" placeholder="Name" autocomplete="off" />
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;">
+            <div class="date-label">Month</div>
+            <select id="birthdayMonth" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--bg);color:var(--text);outline:none;">
+              <option value="">Month</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <div class="date-label">Day</div>
+            <input type="number" id="birthdayDay" placeholder="Day" min="1" max="31" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--bg);color:var(--text);outline:none;" />
+          </div>
+        </div>
+        <button class="btn-add" onclick="addBirthday()">Add Birthday</button>
+      </div>
+      <div class="toast" id="birthdayToast"></div>
+    </div>
+
+    <div class="section-label">Birthdays</div>
+    <div class="task-list" id="birthdayList">
       <div class="loading">Loading...</div>
     </div>
   </div>
@@ -479,6 +520,7 @@
       document.getElementById('tab-' + tab).classList.add('active');
       btn.classList.add('active');
       if (tab === 'settings') loadSettings();
+      if (tab === 'birthdays') loadBirthdays();
     }
 
     function formatDate(dateStr) {
@@ -831,6 +873,183 @@
       } catch (e) {
         toggle.checked = !toggle.checked;
         console.error('Failed to update skip setting', e);
+      }
+    }
+
+    function showBirthdayToast(msg, isError = false) {
+      const t = document.getElementById('birthdayToast');
+      t.textContent = msg;
+      t.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(() => { t.className = 'toast'; }, 2500);
+    }
+
+    function getDaysUntilBirthday(month, day) {
+      const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Denver' }));
+      today.setHours(0, 0, 0, 0);
+      let bday = new Date(today.getFullYear(), month - 1, day);
+      if (bday < today) bday = new Date(today.getFullYear() + 1, month - 1, day);
+      return Math.round((bday - today) / (1000 * 60 * 60 * 24));
+    }
+
+    function formatBirthdayDate(month, day) {
+      const d = new Date(2000, month - 1, day);
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    }
+
+    async function loadBirthdays() {
+      const list = document.getElementById('birthdayList');
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/birthdays?order=month.asc,day.asc`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        });
+        if (!res.ok) throw new Error('Failed to fetch birthdays');
+        const birthdays = await res.json();
+
+        if (birthdays.length === 0) {
+          list.innerHTML = `<div class="empty-state"><div class="icon">🎂</div>No birthdays added yet</div>`;
+          return;
+        }
+
+        // Sort by days until next birthday
+        birthdays.sort((a, b) => getDaysUntilBirthday(a.month, a.day) - getDaysUntilBirthday(b.month, b.day));
+
+        const upcoming = birthdays.filter(b => getDaysUntilBirthday(b.month, b.day) <= 90);
+        const later = birthdays.filter(b => getDaysUntilBirthday(b.month, b.day) > 90);
+
+        list.innerHTML = '';
+
+        function buildCard(b) {
+          const daysAway = getDaysUntilBirthday(b.month, b.day);
+          const dateStr = formatBirthdayDate(b.month, b.day);
+
+          let dueHtml = '';
+          let cardClass = 'task-card';
+          if (daysAway === 0) {
+            dueHtml = `<div class="task-due today">🎂 Today!</div>`;
+            cardClass += ' due-today';
+          } else if (daysAway <= 14) {
+            dueHtml = `<div class="task-due" style="color:var(--green);font-weight:500;">In ${daysAway} day${daysAway !== 1 ? 's' : ''} · ${dateStr}</div>`;
+          } else {
+            dueHtml = `<div class="task-due">${dateStr} · in ${daysAway} days</div>`;
+          }
+
+          const card = document.createElement('div');
+          card.className = cardClass;
+          card.id = `birthday-${b.id}`;
+          card.innerHTML = `
+            <div class="task-content">
+              <div class="task-name">${b.name}</div>
+              ${dueHtml}
+              <div class="task-actions">
+                <button class="snooze-btn" onclick="deleteBirthday('${b.id}', '${b.name.replace(/'/g, "\\'")}')">Remove</button>
+              </div>
+            </div>
+          `;
+          return card;
+        }
+
+        // Upcoming (within 3 months)
+        if (upcoming.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          empty.style.padding = '20px 0';
+          empty.textContent = 'No birthdays in the next 3 months.';
+          list.appendChild(empty);
+        } else {
+          upcoming.forEach(b => list.appendChild(buildCard(b)));
+        }
+
+        // Later section (collapsible)
+        if (later.length > 0) {
+          const laterSection = document.createElement('div');
+          laterSection.style.marginTop = '16px';
+
+          const toggle = document.createElement('button');
+          toggle.style.cssText = `width:100%;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;`;
+          toggle.innerHTML = `<span>More than 3 months out (${later.length})</span><span id="later-arrow">▸</span>`;
+
+          const laterList = document.createElement('div');
+          laterList.id = 'later-list';
+          laterList.style.display = 'none';
+          laterList.style.marginTop = '8px';
+          laterList.style.display = 'none';
+
+          const innerList = document.createElement('div');
+          innerList.className = 'task-list';
+          later.forEach(b => innerList.appendChild(buildCard(b)));
+          laterList.appendChild(innerList);
+
+          toggle.onclick = () => {
+            const isHidden = laterList.style.display === 'none';
+            laterList.style.display = isHidden ? 'block' : 'none';
+            document.getElementById('later-arrow').textContent = isHidden ? '▾' : '▸';
+          };
+
+          laterSection.appendChild(toggle);
+          laterSection.appendChild(laterList);
+          list.appendChild(laterSection);
+        }
+
+      } catch (e) {
+        list.innerHTML = `<div class="empty-state">Failed to load birthdays.</div>`;
+        console.error(e);
+      }
+    }
+
+    async function addBirthday() {
+      const name = document.getElementById('birthdayName').value.trim();
+      const month = parseInt(document.getElementById('birthdayMonth').value);
+      const day = parseInt(document.getElementById('birthdayDay').value);
+
+      if (!name) { showBirthdayToast('Please enter a name.', true); return; }
+      if (!month) { showBirthdayToast('Please select a month.', true); return; }
+      if (!day || day < 1 || day > 31) { showBirthdayToast('Please enter a valid day.', true); return; }
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/birthdays`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ name, month, day })
+        });
+
+        if (!res.ok) throw new Error('Failed to add birthday');
+        document.getElementById('birthdayName').value = '';
+        document.getElementById('birthdayMonth').value = '';
+        document.getElementById('birthdayDay').value = '';
+        showBirthdayToast('Birthday added.');
+        loadBirthdays();
+      } catch (e) {
+        showBirthdayToast('Failed to add birthday. Try again.', true);
+        console.error(e);
+      }
+    }
+
+    async function deleteBirthday(id, name) {
+      if (!confirm(`Remove ${name}'s birthday?`)) return;
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/birthdays?id=eq.${id}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`
+          }
+        });
+
+        if (!res.ok) throw new Error('Failed to delete birthday');
+        document.getElementById(`birthday-${id}`)?.remove();
+        const list = document.getElementById('birthdayList');
+        if (list.querySelectorAll('.task-card').length === 0) {
+          list.innerHTML = `<div class="empty-state"><div class="icon">🎂</div>No birthdays added yet</div>`;
+        }
+      } catch (e) {
+        showBirthdayToast('Failed to remove. Try again.', true);
+        console.error(e);
       }
     }
 
