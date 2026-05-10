@@ -252,6 +252,124 @@ def build_birthday_section(birthdays):
     '''
 
 
+def fetch_upcoming_subscriptions():
+    """Fetch subscriptions and trials due for reminder."""
+    res = requests.get(
+        f'{SUPABASE_URL}/rest/v1/subscriptions',
+        params={'order': 'next_billing_date.asc.nullslast'},
+        headers={
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}'
+        }
+    )
+    res.raise_for_status()
+    all_subs = res.json()
+
+    today_date = date.fromisoformat(get_mountain_today())
+    reminders = []
+
+    for s in all_subs:
+        cadence = s.get('cadence')
+
+        if cadence == 'trial':
+            end_date_str = s.get('trial_end_date')
+            if not end_date_str:
+                continue
+            end_date = date.fromisoformat(end_date_str)
+            days_away = (end_date - today_date).days
+            if 0 <= days_away <= 14:
+                reminders.append({
+                    'name': s['name'],
+                    'days_away': days_away,
+                    'date_str': end_date.strftime('%b %-d'),
+                    'type': 'trial',
+                    'amount': None
+                })
+
+        elif cadence == 'monthly':
+            billing_str = s.get('next_billing_date')
+            if not billing_str:
+                continue
+            billing_date = date.fromisoformat(billing_str)
+            days_away = (billing_date - today_date).days
+            if 0 <= days_away <= 3:
+                reminders.append({
+                    'name': s['name'],
+                    'days_away': days_away,
+                    'date_str': billing_date.strftime('%b %-d'),
+                    'type': 'monthly',
+                    'amount': s['amount']
+                })
+
+        elif cadence == 'yearly':
+            billing_str = s.get('next_billing_date')
+            if not billing_str:
+                continue
+            billing_date = date.fromisoformat(billing_str)
+            days_away = (billing_date - today_date).days
+            if 0 <= days_away <= 14:
+                reminders.append({
+                    'name': s['name'],
+                    'days_away': days_away,
+                    'date_str': billing_date.strftime('%b %-d'),
+                    'type': 'yearly',
+                    'amount': s['amount']
+                })
+
+    reminders.sort(key=lambda x: x['days_away'])
+    return reminders
+
+
+def build_subscription_section(reminders):
+    if not reminders:
+        return ''
+
+    rows = ''
+    for r in reminders:
+        if r['type'] == 'trial':
+            if r['days_away'] == 0:
+                label = f'<span style="color:{DANGER};font-weight:600;font-size:12px;">Trial ends today — cancel now</span>'
+            else:
+                label = f'<span style="color:{DANGER};font-size:12px;">Trial ends in {r["days_away"]} day{"s" if r["days_away"] != 1 else ""} · {r["date_str"]}</span>'
+            border = f'border:1px solid {DANGER};border-left:3px solid {DANGER};'
+            bg = WHITE
+        else:
+            amount_str = f'${float(r["amount"]):.2f}' if r["amount"] else ''
+            cadence_str = '/mo' if r['type'] == 'monthly' else '/yr'
+            if r['days_away'] == 0:
+                label = f'<span style="color:#8A6A00;font-weight:600;font-size:12px;">Billing today · {amount_str}{cadence_str}</span>'
+            else:
+                label = f'<span style="color:{MUTED};font-size:12px;">Billing in {r["days_away"]} day{"s" if r["days_away"] != 1 else ""} · {r["date_str"]} · {amount_str}{cadence_str}</span>'
+            border = f'border:1px solid {BORDER};border-left:3px solid {GOLD};'
+            bg = '#FFF8E6'
+
+        rows += f'''
+        <tr>
+          <td style="padding:0 0 8px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:{bg};{border}border-radius:10px;">
+              <tr>
+                <td style="padding:14px 20px;">
+                  <div style="font-size:15px;font-weight:500;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;">{r["name"]}</div>
+                  <div style="margin-top:3px;">{label}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>'''
+
+    return f'''
+          <!-- Subscription reminders -->
+          <tr>
+            <td style="padding:0 0 8px 0;">
+              <div style="font-size:12px;font-weight:600;color:{MUTED};margin-bottom:10px;">Upcoming Billing</div>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                {rows}
+              </table>
+            </td>
+          </tr>
+    '''
+
+
 def format_date(date_str):
     if not date_str:
         return None
@@ -329,7 +447,7 @@ def build_task_row(task):
     '''
 
 
-def build_email(tasks, send_type, birthdays=None):
+def build_email(tasks, send_type, birthdays=None, subscription_reminders=None):
     today_str = get_mountain_now().strftime('%B %-d, %Y')
     time_label = '7am' if send_type == 'morning' else '4:30pm'
 
@@ -358,6 +476,7 @@ def build_email(tasks, send_type, birthdays=None):
     summary_html = ' &nbsp;·&nbsp; '.join(summary_parts)
 
     birthday_html = build_birthday_section(birthdays or [])
+    subscription_html = build_subscription_section(subscription_reminders or [])
 
     # Skip followup button — only in morning email
     skip_html = ''
@@ -393,6 +512,7 @@ def build_email(tasks, send_type, birthdays=None):
           </tr>
 
           {birthday_html}
+          {subscription_html}
 
           <!-- Summary bar -->
           <tr>
@@ -497,8 +617,15 @@ def main():
         birthdays = fetch_upcoming_birthdays()
         print(f'STATUS: Found {len(birthdays)} upcoming birthdays in next 14 days')
 
+    # Fetch subscription reminders (only for morning email)
+    subscription_reminders = []
+    if send_type == 'morning':
+        print('STATUS: Fetching subscription reminders...')
+        subscription_reminders = fetch_upcoming_subscriptions()
+        print(f'STATUS: Found {len(subscription_reminders)} subscription reminders')
+
     # Build and send
-    html = build_email(tasks, send_type, birthdays)
+    html = build_email(tasks, send_type, birthdays, subscription_reminders)
     send_email(html, send_type, len(tasks))
 
     # Mark as sent (skip for manual triggers to allow re-testing)
