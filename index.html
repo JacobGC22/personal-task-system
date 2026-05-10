@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jacob Personal To-Do</title>
+  <title>Jacob Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -415,7 +415,7 @@
 <body>
 
   <header>
-    <h1>Jacob Personal To-Do</h1>
+    <h1>Jacob Dashboard</h1>
   </header>
 
   <div class="tab-nav">
@@ -987,7 +987,7 @@
     }
 
     function updateTitle(count) {
-      document.title = count > 0 ? `Jacob Personal To-Do (${count})` : 'Jacob Personal To-Do';
+      document.title = count > 0 ? `Jacob Dashboard (${count})` : 'Jacob Dashboard';
     }
 
     async function fetchTasks() {
@@ -1374,6 +1374,7 @@
             dueHtml = `<div class="task-due">${dateStr} · in ${daysAway} days</div>`;
           }
 
+          const escapedName = b.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
           const card = document.createElement('div');
           card.className = cardClass;
           card.id = `birthday-${b.id}`;
@@ -1382,7 +1383,8 @@
               <div class="task-name">${b.name}</div>
               ${dueHtml}
               <div class="task-actions">
-                <button class="snooze-btn" onclick="deleteBirthday('${b.id}', '${b.name.replace(/'/g, "\\'")}')">Remove</button>
+                <button class="edit-btn" onclick="editBirthday('${b.id}', '${escapedName}', ${b.month}, ${b.day})">Edit</button>
+                <button class="snooze-btn" onclick="deleteBirthday('${b.id}', '${escapedName}')">Remove</button>
               </div>
             </div>
           `;
@@ -1466,6 +1468,74 @@
         loadBirthdays();
       } catch (e) {
         showBirthdayToast('Failed to add birthday. Try again.', true);
+        console.error(e);
+      }
+    }
+
+    function editBirthday(id, currentName, currentMonth, currentDay) {
+      const card = document.getElementById(`birthday-${id}`);
+      if (!card) return;
+      card.dataset.originalHtml = card.innerHTML;
+
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const monthOptions = months.map((m, i) =>
+        `<option value="${i+1}" ${currentMonth === i+1 ? 'selected' : ''}>${m}</option>`
+      ).join('');
+
+      card.innerHTML = `
+        <div class="task-content">
+          <div class="edit-form">
+            <input class="edit-input" id="edit-bday-name-${id}" type="text" value="${currentName.replace(/"/g, '&quot;')}" />
+            <div style="display:flex;gap:8px;">
+              <div style="flex:2;">
+                <div class="date-label">Month</div>
+                <select id="edit-bday-month-${id}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--text);outline:none;">${monthOptions}</select>
+              </div>
+              <div style="flex:1;">
+                <div class="date-label">Day</div>
+                <input class="edit-input" id="edit-bday-day-${id}" type="number" min="1" max="31" value="${currentDay}" style="margin-top:0;" />
+              </div>
+            </div>
+            <div class="edit-actions">
+              <button class="save-edit-btn" onclick="saveBirthday('${id}')">Save</button>
+              <button class="cancel-edit-btn" onclick="cancelBirthdayEdit('${id}')">Cancel</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById(`edit-bday-name-${id}`).focus();
+    }
+
+    function cancelBirthdayEdit(id) {
+      const card = document.getElementById(`birthday-${id}`);
+      if (!card) return;
+      card.innerHTML = card.dataset.originalHtml;
+    }
+
+    async function saveBirthday(id) {
+      const name = document.getElementById(`edit-bday-name-${id}`).value.trim();
+      const month = parseInt(document.getElementById(`edit-bday-month-${id}`).value);
+      const day = parseInt(document.getElementById(`edit-bday-day-${id}`).value);
+
+      if (!name || !month || !day || day < 1 || day > 31) return;
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/birthdays?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ name, month, day })
+        });
+
+        if (!res.ok) throw new Error('Failed to save');
+        showBirthdayToast('Birthday updated.');
+        loadBirthdays();
+      } catch (e) {
+        showBirthdayToast('Failed to save. Try again.', true);
         console.error(e);
       }
     }
