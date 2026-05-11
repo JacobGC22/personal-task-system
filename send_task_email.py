@@ -162,6 +162,22 @@ def fetch_upcoming_birthdays():
     return upcoming
 
 
+def section_header(title, emoji=''):
+    """Full-width green strip section header."""
+    return f'''
+          <tr>
+            <td style="padding:0 0 12px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:{GREEN};border-radius:8px;">
+                <tr>
+                  <td style="padding:10px 16px;">
+                    <span style="font-size:12px;font-weight:700;color:{WHITE};text-transform:uppercase;letter-spacing:1px;font-family:'DM Sans',Arial,sans-serif;">{emoji}{title}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>'''
+
+
 def build_birthday_section(birthdays):
     if not birthdays:
         return ''
@@ -169,25 +185,22 @@ def build_birthday_section(birthdays):
     rows = ''
     for b in birthdays:
         if b['days_away'] == 0:
-            bg = '#FFF8E6'
-            border = f'border:1px solid {GOLD};border-left:3px solid {GOLD};'
+            accent = GOLD
             label = f'<span style="color:#8A6A00;font-weight:600;font-size:12px;">🎂 Today!</span>'
         elif b['days_away'] <= 3:
-            bg = WHITE
-            border = f'border:1px solid {BORDER};border-left:3px solid {GOLD};'
-            label = f'<span style="color:{MUTED};font-size:12px;">In {b["days_away"]} day{"s" if b["days_away"] != 1 else ""} · {b["date_str"]}</span>'
+            accent = GOLD
+            label = f'<span style="color:#8A6A00;font-size:12px;font-weight:500;">In {b["days_away"]} day{"s" if b["days_away"] != 1 else ""} · {b["date_str"]}</span>'
         else:
-            bg = WHITE
-            border = f'border:1px solid {BORDER};'
+            accent = BORDER
             label = f'<span style="color:{MUTED};font-size:12px;">In {b["days_away"]} days · {b["date_str"]}</span>'
 
         rows += f'''
         <tr>
           <td style="padding:0 0 8px 0;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:{bg};{border}border-radius:10px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:{WHITE};border:1px solid {BORDER};border-left:3px solid {accent};border-radius:8px;">
               <tr>
-                <td style="padding:14px 20px;">
-                  <div style="font-size:15px;font-weight:500;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;">{b["name"]}</div>
+                <td style="padding:12px 16px;">
+                  <div style="font-size:15px;font-weight:600;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;">{b["name"]}</div>
                   <div style="margin-top:3px;">{label}</div>
                 </td>
               </tr>
@@ -196,10 +209,9 @@ def build_birthday_section(birthdays):
         </tr>'''
 
     return f'''
-          <!-- Birthdays -->
+          {section_header('Birthdays', '🎂  ')}
           <tr>
-            <td style="padding:0 0 8px 0;">
-              <div style="font-size:12px;font-weight:600;color:{MUTED};margin-bottom:10px;">Upcoming Birthdays</div>
+            <td style="padding:0 0 24px 0;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 {rows}
               </table>
@@ -283,29 +295,27 @@ def build_subscription_section(reminders):
     rows = ''
     for r in reminders:
         if r['type'] == 'trial':
+            accent = DANGER
             if r['days_away'] == 0:
                 label = f'<span style="color:{DANGER};font-weight:600;font-size:12px;">Trial ends today — cancel now</span>'
             else:
                 label = f'<span style="color:{DANGER};font-size:12px;">Trial ends in {r["days_away"]} day{"s" if r["days_away"] != 1 else ""} · {r["date_str"]}</span>'
-            border = f'border:1px solid {DANGER};border-left:3px solid {DANGER};'
-            bg = WHITE
         else:
+            accent = GOLD
             amount_str = f'${float(r["amount"]):.2f}' if r["amount"] else ''
             cadence_str = '/mo' if r['type'] == 'monthly' else '/yr'
             if r['days_away'] == 0:
                 label = f'<span style="color:#8A6A00;font-weight:600;font-size:12px;">Billing today · {amount_str}{cadence_str}</span>'
             else:
                 label = f'<span style="color:{MUTED};font-size:12px;">Billing in {r["days_away"]} day{"s" if r["days_away"] != 1 else ""} · {r["date_str"]} · {amount_str}{cadence_str}</span>'
-            border = f'border:1px solid {BORDER};border-left:3px solid {GOLD};'
-            bg = '#FFF8E6'
 
         rows += f'''
         <tr>
           <td style="padding:0 0 8px 0;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:{bg};{border}border-radius:10px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:{WHITE};border:1px solid {BORDER};border-left:3px solid {accent};border-radius:8px;">
               <tr>
-                <td style="padding:14px 20px;">
-                  <div style="font-size:15px;font-weight:500;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;">{r["name"]}</div>
+                <td style="padding:12px 16px;">
+                  <div style="font-size:15px;font-weight:600;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;">{r["name"]}</div>
                   <div style="margin-top:3px;">{label}</div>
                 </td>
               </tr>
@@ -314,10 +324,9 @@ def build_subscription_section(reminders):
         </tr>'''
 
     return f'''
-          <!-- Subscription reminders -->
+          {section_header('Upcoming Billing', '💳  ')}
           <tr>
-            <td style="padding:0 0 8px 0;">
-              <div style="font-size:12px;font-weight:600;color:{MUTED};margin-bottom:10px;">Upcoming Billing</div>
+            <td style="padding:0 0 24px 0;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 {rows}
               </table>
@@ -369,26 +378,26 @@ def build_task_row(task):
         snooze_html = f'''
         <tr>
           <td colspan="2" style="padding-top:8px;">
-            <a href="{snooze_url}" style="display:inline-block;padding:4px 10px;border:1px solid {BORDER};border-radius:6px;font-size:12px;color:{MUTED};text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
-              Snooze 1 day
+            <a href="{snooze_url}" style="font-size:12px;color:{MUTED};text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
+              Snooze 1 day →
             </a>
           </td>
         </tr>'''
 
     return f'''
     <tr>
-      <td style="padding:0 0 10px 0;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:{WHITE};border:1px solid {BORDER};border-radius:10px;{left_border}">
+      <td style="padding:0 0 8px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:{WHITE};border:1px solid {BORDER};border-radius:8px;{left_border}">
           <tr>
-            <td style="padding:18px 20px;">
+            <td style="padding:14px 16px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="font-size:15px;font-weight:500;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;line-height:1.4;">
+                  <td style="font-size:15px;font-weight:600;color:#1a1a1a;font-family:'DM Sans',Arial,sans-serif;line-height:1.4;">
                     {task['task_name']}
                   </td>
                   <td align="right" style="white-space:nowrap;padding-left:16px;">
-                    <a href="{complete_url}" style="display:inline-block;padding:7px 16px;background:{GREEN};color:{WHITE};text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;font-family:'DM Sans',Arial,sans-serif;">
-                      Done
+                    <a href="{complete_url}" style="display:inline-block;padding:6px 14px;background:{GREEN};color:{WHITE};text-decoration:none;border-radius:6px;font-size:12px;font-weight:700;font-family:'DM Sans',Arial,sans-serif;letter-spacing:0.3px;">
+                      DONE
                     </a>
                   </td>
                 </tr>
@@ -412,7 +421,7 @@ def build_email(tasks, send_type, birthdays=None, subscription_reminders=None):
     if not tasks:
         body_html = f'''
         <tr>
-          <td align="center" style="padding:40px 0;color:{MUTED};font-size:15px;font-family:'DM Sans',Arial,sans-serif;">
+          <td align="center" style="padding:32px 0;color:{MUTED};font-size:14px;font-family:'DM Sans',Arial,sans-serif;">
             No open tasks. Nice work.
           </td>
         </tr>
@@ -423,13 +432,30 @@ def build_email(tasks, send_type, birthdays=None, subscription_reminders=None):
     overdue_count = sum(1 for t in tasks if get_due_status(t.get('due_date')) == 'overdue')
     today_count = sum(1 for t in tasks if get_due_status(t.get('due_date')) == 'today')
 
-    summary_parts = []
+    # Build task section header with inline summary
+    status_parts = []
     if overdue_count:
-        summary_parts.append(f'<span style="color:{DANGER};font-weight:600;">{overdue_count} overdue</span>')
+        status_parts.append(f'<span style="color:{DANGER};font-weight:700;">{overdue_count} overdue</span>')
     if today_count:
-        summary_parts.append(f'<span style="color:#8A6A00;font-weight:600;">{today_count} due today</span>')
-    summary_parts.append(f'{len(tasks)} total open')
-    summary_html = ' &nbsp;·&nbsp; '.join(summary_parts)
+        status_parts.append(f'<span style="color:{GOLD};font-weight:700;">{today_count} due today</span>')
+    status_str = ' · '.join(status_parts)
+    count_str = f'{len(tasks)} open'
+
+    tasks_header = f'''
+          <tr>
+            <td style="padding:0 0 12px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:{GREEN};border-radius:8px;">
+                <tr>
+                  <td style="padding:10px 16px;">
+                    <span style="font-size:12px;font-weight:700;color:{WHITE};text-transform:uppercase;letter-spacing:1px;font-family:'DM Sans',Arial,sans-serif;">✓  Tasks</span>
+                  </td>
+                  <td align="right" style="padding:10px 16px;">
+                    <span style="font-size:12px;color:rgba(255,255,255,0.75);font-family:'DM Sans',Arial,sans-serif;">{count_str}{" · " + status_str if status_str else ""}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>'''
 
     birthday_html = build_birthday_section(birthdays or [])
     subscription_html = build_subscription_section(subscription_reminders or [])
@@ -439,9 +465,9 @@ def build_email(tasks, send_type, birthdays=None, subscription_reminders=None):
     if send_type == 'morning':
         skip_html = f'''
           <tr>
-            <td style="padding:20px 0 0 0;text-align:center;">
-              <a href="{skip_url}" style="color:{MUTED};font-size:12px;text-decoration:none;border:1px solid {BORDER};padding:6px 14px;border-radius:6px;font-family:'DM Sans',Arial,sans-serif;">
-                Skip today's followup email
+            <td style="padding:24px 0 0 0;text-align:center;border-top:1px solid {BORDER};">
+              <a href="{skip_url}" style="color:{MUTED};font-size:12px;text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
+                Skip today's 4:30pm email
               </a>
             </td>
           </tr>'''
@@ -454,38 +480,36 @@ def build_email(tasks, send_type, birthdays=None, subscription_reminders=None):
   <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
 <body style="margin:0;padding:0;background:{BG};font-family:'DM Sans',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:{BG};padding:32px 16px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:{BG};padding:24px 16px 32px;">
     <tr>
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
           <!-- Header -->
           <tr>
-            <td style="padding:0 0 28px 0;">
-              <div style="font-size:20px;font-weight:600;color:{GREEN};">Tasks</div>
-              <div style="font-size:13px;color:{MUTED};margin-top:4px;">{time_label} &nbsp;·&nbsp; {today_str}</div>
-            </td>
-          </tr>
-
-          {birthday_html}
-          {subscription_html}
-
-          <!-- Summary bar -->
-          <tr>
-            <td style="padding:0 0 20px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:{WHITE};border:1px solid {BORDER};border-radius:10px;">
+            <td style="padding:0 0 24px 0;border-bottom:2px solid {GREEN};margin-bottom:24px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="padding:14px 20px;font-size:13px;font-family:'DM Sans',Arial,sans-serif;">
-                    {summary_html}
+                  <td>
+                    <div style="font-size:22px;font-weight:700;color:{GREEN};font-family:'DM Sans',Arial,sans-serif;letter-spacing:-0.5px;">Jacob Dashboard</div>
+                    <div style="font-size:13px;color:{MUTED};margin-top:3px;font-family:'DM Sans',Arial,sans-serif;">{time_label} &nbsp;·&nbsp; {today_str}</div>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
+          <!-- Spacer -->
+          <tr><td style="height:20px;"></td></tr>
+
+          {birthday_html}
+          {subscription_html}
+
+          {tasks_header}
+
           <!-- Task rows -->
           <tr>
-            <td>
+            <td style="padding:0 0 8px 0;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 {body_html}
               </table>
@@ -494,9 +518,9 @@ def build_email(tasks, send_type, birthdays=None, subscription_reminders=None):
 
           <!-- Footer -->
           <tr>
-            <td style="padding:28px 0 0 0;text-align:center;">
-              <a href="{PAGES_URL}" style="color:{GREEN};font-size:13px;font-weight:500;text-decoration:none;">
-                Open task list →
+            <td style="padding:20px 0 0 0;text-align:center;">
+              <a href="{PAGES_URL}" style="color:{GREEN};font-size:13px;font-weight:600;text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
+                Open Dashboard →
               </a>
             </td>
           </tr>
