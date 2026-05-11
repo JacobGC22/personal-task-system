@@ -61,6 +61,7 @@ def determine_send_type():
     morning_end = MORNING_WINDOW_END[0] * 60 + MORNING_WINDOW_END[1]
     followup_start = FOLLOWUP_WINDOW_START[0] * 60 + FOLLOWUP_WINDOW_START[1]
     followup_end = FOLLOWUP_WINDOW_END[0] * 60 + FOLLOWUP_WINDOW_END[1]
+    print(f'STATUS: total_minutes={total_minutes}, morning_start={morning_start}, morning_end={morning_end}')
 
     if morning_start <= total_minutes < morning_end:
         print(f'STATUS: Mountain time is {hour}:{minute:02d} — matched morning window')
