@@ -6,7 +6,7 @@ from datetime import datetime, date
 SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_KEY']
 RESEND_API_KEY = os.environ['RESEND_API_KEY']
-FORCE_SEND = os.environ.get('FORCE_SEND', '')  # 'morning', 'followup', or ''
+SEND_TYPE = os.environ.get('SEND_TYPE', '')  # 'morning' or 'followup'
 
 PAGES_URL = 'https://JacobGC22.github.io/personal-task-system'
 
@@ -21,15 +21,6 @@ BORDER = '#E2DED6'
 
 MOUNTAIN = pytz.timezone('America/Denver')
 
-# Valid Mountain time windows for each send
-MORNING_HOUR = 7
-MORNING_WINDOW_START = (6, 30)   # 6:30am Mountain
-MORNING_WINDOW_END = (9, 0)      # 9:00am Mountain
-FOLLOWUP_HOUR = 16
-FOLLOWUP_MINUTE = 30
-FOLLOWUP_WINDOW_START = (16, 0)  # 4:00pm Mountain
-FOLLOWUP_WINDOW_END = (18, 0)    # 6:00pm Mountain
-
 
 def get_mountain_now():
     return datetime.now(MOUNTAIN)
@@ -37,42 +28,6 @@ def get_mountain_now():
 
 def get_mountain_today():
     return get_mountain_now().strftime('%Y-%m-%d')
-
-
-def determine_send_type():
-    """
-    Returns 'morning', 'followup', or None.
-    If FORCE_SEND is set (manual trigger), use that directly.
-    Otherwise check Mountain time to determine which send this is.
-    """
-    if FORCE_SEND == 'morning':
-        print('STATUS: Manual trigger — forcing morning email')
-        return 'morning'
-    if FORCE_SEND == 'followup':
-        print('STATUS: Manual trigger — forcing followup email')
-        return 'followup'
-
-    now_mt = get_mountain_now()
-    hour = now_mt.hour
-    minute = now_mt.minute
-    total_minutes = hour * 60 + minute
-
-    morning_start = MORNING_WINDOW_START[0] * 60 + MORNING_WINDOW_START[1]
-    morning_end = MORNING_WINDOW_END[0] * 60 + MORNING_WINDOW_END[1]
-    followup_start = FOLLOWUP_WINDOW_START[0] * 60 + FOLLOWUP_WINDOW_START[1]
-    followup_end = FOLLOWUP_WINDOW_END[0] * 60 + FOLLOWUP_WINDOW_END[1]
-    print(f'STATUS: total_minutes={total_minutes}, morning_start={morning_start}, morning_end={morning_end}')
-
-    if morning_start <= total_minutes < morning_end:
-        print(f'STATUS: Mountain time is {hour}:{minute:02d} — matched morning window')
-        return 'morning'
-
-    if followup_start <= total_minutes < followup_end:
-        print(f'STATUS: Mountain time is {hour}:{minute:02d} — matched followup window')
-        return 'followup'
-
-    print(f'STATUS: Mountain time is {hour}:{minute:02d} — outside all send windows, skipping')
-    return None
 
 
 def is_weekend():
@@ -585,12 +540,13 @@ def send_email(html, send_type, task_count):
 
 
 def main():
-    # Determine what to send
-    send_type = determine_send_type()
+    send_type = SEND_TYPE
 
-    if send_type is None:
-        print('STATUS: Nothing to send, exiting cleanly')
+    if send_type not in ('morning', 'followup'):
+        print(f'STATUS: SEND_TYPE is "{send_type}" — must be morning or followup, exiting')
         return
+
+    print(f'STATUS: Send type: {send_type}')
 
     # Skip followup on weekends
     if send_type == 'followup' and is_weekend():
@@ -601,10 +557,9 @@ def main():
     if send_type == 'followup' and check_followup_skipped():
         return
 
-    # Prevent double-send on DST transition days (skip for manual triggers)
-    if not FORCE_SEND:
-        if check_already_sent_today(send_type):
-            return
+    # Prevent double-send (e.g. both DST crons firing)
+    if check_already_sent_today(send_type):
+        return
 
     # Fetch tasks
     print('STATUS: Fetching tasks from Supabase...')
@@ -629,9 +584,8 @@ def main():
     html = build_email(tasks, send_type, birthdays, subscription_reminders)
     send_email(html, send_type, len(tasks))
 
-    # Mark as sent (skip for manual triggers to allow re-testing)
-    if not FORCE_SEND:
-        mark_sent_today(send_type)
+    # Mark as sent
+    mark_sent_today(send_type)
 
 
 if __name__ == '__main__':
